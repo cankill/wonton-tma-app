@@ -1,4 +1,4 @@
-import { Address, Cell, Contract, ContractProvider, SendMode, Sender, beginCell, contractAddress, toNano } from "ton-core";
+import { Address, Cell, Contract, ContractProvider, SendMode, Sender, beginCell, contractAddress } from "ton-core";
 
 export type MainContractConfig = {
     number: number;
