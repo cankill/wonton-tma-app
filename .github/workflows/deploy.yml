@@ -1,9 +1,9 @@
-name: Deploy
+name: DeployUI
 
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build:
