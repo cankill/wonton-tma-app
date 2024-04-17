@@ -1,4 +1,4 @@
-name: DeployUI
+name: Deploy
 
 on:
   push:
