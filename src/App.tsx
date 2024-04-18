@@ -20,7 +20,7 @@ function App() {
   const { connected } = useTonConnect();
   
   const showAlert = () => {
-    WebApp.showAlert("Hey there!");
+    WebApp.showAlert(`Hey there! Color scheme: ${WebApp.colorScheme}`);
   };
 
   return (
