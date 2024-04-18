@@ -30,7 +30,7 @@ function App() {
       </div>  
       <div>
         <div className='Card'>
-          <b>{WebApp.platform}</b>
+          <b>{WebApp.platform}</b><br/>
           <b>Our contract Address</b>
           <div className='Hint'>{ contract_address }</div>
           <b>Our contract Balance</b>
