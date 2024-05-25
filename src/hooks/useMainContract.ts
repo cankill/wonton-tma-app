@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTonClient } from "./useTonClient";
-import { Address, OpenedContract, toNano } from "ton-core";
+import { Address, OpenedContract, toNano } from "@ton/core";
 import { useAsyncInitialize } from "./useAsyncInitialize";
 import { MainContract } from "../contracts/MainContract";
 import { useTonConnect } from "./useTonConnect";
@@ -28,6 +28,7 @@ export function useMainContract() {
         return client.open(contract) as NewType;
     }, [client]);
 
+    // Contract details poller
     useEffect(() => {
         async function getValue() {
             if (!mainContract) return;
