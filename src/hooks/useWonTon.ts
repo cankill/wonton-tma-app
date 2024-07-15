@@ -1,27 +1,28 @@
 import { useEffect, useState } from "react";
 import { useTonClient } from "./useTonClient";
-import { Address, OpenedContract, toNano } from "@ton/core";
+import {Address, fromNano, OpenedContract, toNano} from "@ton/core";
 import { useAsyncInitialize } from "./useAsyncInitialize";
-import { WonTonContract } from "../contracts/WonTonContract";
+import { WonTonContract } from "../contracts/WonTonContract.ts";
 import { useTonConnect } from "./useTonConnect";
 
 
-export function useMainContract() {
+export function useWonTonContract() {
     const client = useTonClient();
     const { sender } = useTonConnect();
-    const [contractData, setContractData] = useState<null | {
-        counter_value: number;
-        recent_sender: Address;
-        owner_address: Address;
+    const [contractInformation, setContractInformation] = useState<null | {
+        wonton_power: number;
+        bettors_count: number;
+        first_bettor: Address | null;
+        second_bettor: Address | null;
     }>();
 
-    const [balance, setBalance] = useState<null | number>(0);
+    const [balance, setBalance] = useState<string>("");
 
     const sleep = (time: number) => new Promise((resolve) => setTimeout(resolve, time));
 
-    const mainContract = useAsyncInitialize(async () => {
+    const wontonContract = useAsyncInitialize(async () => {
         if (!client) return;
-        const contract = new WonTonContract(Address.parse('EQCO1i1VAY-0DU-9cpHBfojlegQlHdrUCivOvEqKgflkjPBp'));
+        const contract = new WonTonContract(Address.parse('EQBa3021BfpJ1kl0EdWtv9TCyB6rxwNsNqySJux1qLg2HrHC'));
 
         type NewType = OpenedContract<WonTonContract>;
 
@@ -30,38 +31,34 @@ export function useMainContract() {
 
     // Contract details poller
     useEffect(() => {
-        async function getValue() {
-            if (!mainContract) return;
-            setContractData(null);
-            const val = await mainContract.getData();
+        async function getInformation() {
+            if (!wontonContract) return;
+            setContractInformation(null);
+            const val = await wontonContract.getInformation();
             console.log(`Main contract data: ${val}`)
-            const { balance } = await mainContract.getBalance();
-            setContractData({
-                counter_value: val.number,
-                recent_sender: val.recent_sender,
-                owner_address: val.owner_address
+            const balance = await wontonContract.getBalance();
+            setContractInformation({
+                wonton_power: val.wonton_power,
+                bettors_count: val.bettors_count,
+                first_bettor: val.first_bettor,
+                second_bettor: val.second_bettor
             });
-            setBalance(balance);
+            setBalance(fromNano(balance));
             await sleep(5000);
-            getValue();
+            getInformation();
         }
 
-        getValue();
-    }, [mainContract]);
+        getInformation();
+    }, [wontonContract]);
 
     return {
-        contract_address: mainContract?.address.toString(),
+        contract_address: wontonContract?.address.toString(),
         contract_balance: balance,
-        ...contractData,
-        sendIncrement: async () => { 
-            return mainContract?.sendIncrementInternalMessage(sender, toNano("0.05"), 5);
+        ...contractInformation,
+
+        sendBet: async () => {
+            return wontonContract?.sendBet(sender, { value: toNano("0.05"), provided_wonton_power: 1 });
         },
-        sendDeposit: async () => {
-            return mainContract?.sendDepositInternalMessage(sender, toNano("0.1"))
-        },
-        sendWithdrawal: async () => {
-            return mainContract?.sendWisdrawalInternalMessage(sender, toNano("0.05"), toNano("0.1"))
-        }
     };
 }
 

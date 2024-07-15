@@ -6,19 +6,24 @@ import {
     contractAddress,
     ContractProvider,
     Sender,
-    SendMode,
-    Slice
+    SendMode
 } from '@ton/core';
 import { crc32 } from '../../libs/Crc32';
 
 export type WonTonConfig = {
-    admin_address: Address;
+    wonton_power: number
+    admin_address: Address
 };
 
 export function wonTonConfigToCell(config: WonTonConfig): Cell {
     return beginCell()
-            .storeAddress(config.admin_address)
-            .storeRef(beginCell().storeDict<number, Slice>().endCell())
+        .storeUint(config.wonton_power, 8)
+        .storeAddress(config.admin_address)
+        .storeUint(0, 2)
+        .storeRef(beginCell()
+            .storeRef(beginCell().storeAddress(null).endCell())
+            .storeRef(beginCell().storeAddress(null).endCell())
+            .endCell())
         .endCell();
 }
 
@@ -53,9 +58,9 @@ export class WonTonContract implements Contract {
         provider: ContractProvider,
         via: Sender,
         opts: {
-            value: bigint;
-            queryID?: number;
-            wontonPower: bigint;
+            value: bigint
+            queryID?: number
+            provided_wonton_power: number
         }
     ) {
         await provider.internal(via, {
@@ -64,17 +69,19 @@ export class WonTonContract implements Contract {
             body: beginCell()
                 .storeUint(Opcodes.bet, 32)
                 .storeUint(opts.queryID ?? 0, 64)
-                .storeUint(opts.wontonPower, 32)
+                .storeUint(opts.provided_wonton_power, 8)
                 .endCell(),
         });
     }
 
-    async getData(provider: ContractProvider, wontonPower: bigint) {
-        const result = await provider.get('get_information', [{ type: "int", value: wontonPower }]);
+    async getInformation(provider: ContractProvider) {
+        const result = await provider.get('get_information', []);
+
         return {
+            wonton_power: result.stack?.readNumber(),
+            bettors_count: result.stack?.readNumber(),
             first_bettor: result.stack?.readAddressOpt(),
-            second_bettor: result.stack?.readAddressOpt(),
-            bettors_count: result.stack?.readNumber()
+            second_bettor: result.stack?.readAddressOpt()
         };
     }
 
