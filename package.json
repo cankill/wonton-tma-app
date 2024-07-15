@@ -7,16 +7,19 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "watch": "tsc --noEmit --watch"
   },
   "dependencies": {
     "@orbs-network/ton-access": "^2.3.3",
     "@ton/blueprint": "^0.19.1",
     "@ton/core": "~0.56.3",
     "@ton/crypto": "^3.2.0",
-    "@ton/ton": "^13.11.1",
-    "@tonconnect/ui-react": "^2.0.2",
+    "@ton/ton": "^13.11.2",
+    "@tonconnect/ui-react": "^2.0.3",
     "@twa-dev/sdk": "^7.0.0",
+    "@vitejs/plugin-basic-ssl": "^1.1.0",
+    "buffer": "^6.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "vite-plugin-node-polyfills": "^0.21.0"
@@ -24,13 +27,13 @@
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/eslint-plugin": "^7.10.0",
-    "@typescript-eslint/parser": "^7.10.0",
+    "@typescript-eslint/eslint-plugin": "^7.12.0",
+    "@typescript-eslint/parser": "^7.12.0",
     "@vitejs/plugin-react": "^4.3.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
     "typescript": "^5.4.5",
-    "vite": "^5.2.11"
+    "vite": "^5.2.12"
   }
 }
