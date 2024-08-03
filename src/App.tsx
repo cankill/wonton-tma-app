@@ -4,6 +4,9 @@ import { useTonConnect } from './hooks/useTonConnect';
 import WebApp from '@twa-dev/sdk';
 import {useWonTonContract} from "./hooks/useWonTon.ts";
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+window.Buffer = window.Buffer || require("buffer").Buffer;
+
 function App() {
   const {
     contract_address,
@@ -23,35 +26,36 @@ function App() {
         <TonConnectButton />
       </div>  
       <div>
-        <div className='Card'>
-          <b>{WebApp.platform}</b><br/>
-          <b>Our contract Address</b>
-          <div className='Hint'>{ contract_address }</div>
-          <b>Our contract Balance</b>
-          {contract_balance && (
-            <div className='Hint'>{ contract_balance || 0 }</div>
-          )}
-          {wonton_power && (
-            <div className='Hint'>{ wonton_power }</div>
-          )}
-          {bettors_count && (
-            <div className='Hint'>{ bettors_count }</div>
-          )}
-          {first_bettor && (
-            <div className='Hint'>{ first_bettor.toString() }</div>
-          )}
-          {second_bettor && (
-            <div className='Hint'>{ second_bettor.toString() }</div>
-          )}
-        </div>
+          <div className='Card'>
+              <b>WebApp platform: </b>
+              <b>{WebApp.platform}</b><br/>
+              <b>Contract Address: </b>
+              <div className='Hint'>{contract_address}</div>
+              <b>Contract Balance</b>
+              <div className='Hint'>{contract_balance || 0}</div>
+              {connected && (
+                  <div>
+                      <div className='Hint'>
+                          <b>Wonton Power:&nbsp;</b>{wonton_power || 0}
+                      </div>
+                      <div className='Hint'>
+                          <b>Bettors Count:&nbsp;</b>{bettors_count || 0}
+                      </div>
+                      <div className='Hint'>
+                          <b>First Bettor contract:&nbsp;</b>{first_bettor?.toString() || "-"}
+                      </div>
+                      <div className='Hint'>
+                          <b>Second Bettor contract:&nbsp;</b>{second_bettor?.toString() || "-"}
+                      </div>
+                  </div>
+              )}
+          </div>
 
-        {connected &&(
-          <a onClick={() => {
-            sendBet();
-          }}>
-            Make a Bet
-          </a>
-        )}
+          {connected && (
+              <button onClick={() => sendBet()}>
+                  Make a Bet
+              </button>
+          )}
       </div>
     </div>
   )

@@ -3,7 +3,7 @@ import App from './App.tsx'
 import './index.css'
 import { TonConnectUIProvider } from '@tonconnect/ui-react'
 
-const manifestUrl = "https://cankill.github.io/wonton-tma-app/tonconnect-manifest.json";
+const manifestUrl = "https://simplemoves.github.io/wonton-nft/tonconnect-manifest.json";
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <TonConnectUIProvider manifestUrl={manifestUrl}>

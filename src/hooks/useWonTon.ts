@@ -5,7 +5,6 @@ import { useAsyncInitialize } from "./useAsyncInitialize";
 import { WonTonContract } from "../contracts/WonTonContract.ts";
 import { useTonConnect } from "./useTonConnect";
 
-
 export function useWonTonContract() {
     const client = useTonClient();
     const { sender } = useTonConnect();
@@ -22,7 +21,8 @@ export function useWonTonContract() {
 
     const wontonContract = useAsyncInitialize(async () => {
         if (!client) return;
-        const contract = new WonTonContract(Address.parse('EQBa3021BfpJ1kl0EdWtv9TCyB6rxwNsNqySJux1qLg2HrHC'));
+        console.log(`Wonton address: ${import.meta.env.VITE_WONTON_CONTRACT}`)
+        const contract = new WonTonContract(Address.parse("EQDK0IhJDZsEnVxNXzZx3idvOcAGDCwyblSImvDcIINwDYnY"));
 
         type NewType = OpenedContract<WonTonContract>;
 
@@ -33,9 +33,8 @@ export function useWonTonContract() {
     useEffect(() => {
         async function getInformation() {
             if (!wontonContract) return;
-            setContractInformation(null);
+            // setContractInformation(null);
             const val = await wontonContract.getInformation();
-            console.log(`Main contract data: ${val}`)
             const balance = await wontonContract.getBalance();
             setContractInformation({
                 wonton_power: val.wonton_power,
@@ -44,7 +43,7 @@ export function useWonTonContract() {
                 second_bettor: val.second_bettor
             });
             setBalance(fromNano(balance));
-            await sleep(5000);
+            await sleep(10000);
             getInformation();
         }
 
@@ -57,7 +56,7 @@ export function useWonTonContract() {
         ...contractInformation,
 
         sendBet: async () => {
-            return wontonContract?.sendBet(sender, { value: toNano("0.05"), provided_wonton_power: 1 });
+            return wontonContract?.sendBet(sender, { value: toNano("1.0"), provided_wonton_power: 0 });
         },
     };
 }
