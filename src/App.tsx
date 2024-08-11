@@ -1,13 +1,16 @@
 import './App.css'
-import { TonConnectButton } from '@tonconnect/ui-react'
+import { Address } from "@ton/ton";
+import { TonConnectButton } from '@tonconnect/ui-react';
 import { useTonConnect } from './hooks/useTonConnect';
-import {useWonTonContract} from "./hooks/useWonTon.ts";
-import { useEffect, useMemo } from "react";
+import { useWonTonContract } from "./hooks/useWonTon.ts";
+import { useEffect, useMemo, useState } from "react";
 import { Card, Flex } from "antd";
 import { useWonTonNftCollectionContract } from './hooks/useWonTonNftCollection.ts';
 import { isNftsEvent, NftWatcherCommand } from '../modules/wonton-lib-common/src/Types.ts';
 import { useNftsStore } from './store/NftsStore.ts';
-
+import { POLL_TIMEOUT, WonTonNftWatchDog } from './workers/WonTonNftWatchDog.ts';
+import { wait } from '../modules/wonton-lib-common/src/PromisUtils.ts';
+import { NftItem } from './NftItem.tsx';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 window.Buffer = window.Buffer || require("buffer").Buffer;
@@ -28,60 +31,28 @@ function App() {
   const winNftContract                  = useWonTonNftCollectionContract(win_nft_contract_str);
   const looseNftContract                = useWonTonNftCollectionContract(loose_nft_contract_str);
   const { connected, walletAddressStr } = useTonConnect();
-  const {
-    winNfts,
-    looseNfts,
-    winTransactions,
-    looseTransactions,
-    setWinNfts,
-    setLooseNfts,
-    setWinTransactions,
-    setLooseTransactions }              = useNftsStore();
-    
-  const worker: Worker = useMemo(() => {
-    console.log("Let's start WonTonNftWatchDog");
-    return new Worker(new URL("./workers/WonTonNftWatchDog.ts", import.meta.url), { type: 'module' })
-  }, []);
-
-  worker.onerror = e => {
-    console.error(e);
-  }
+  const nftStore                        = useNftsStore();
+  const [nftWatcher, setNftWatcher]     = useState<WonTonNftWatchDog|undefined>();
 
   useEffect(() => {
-    if (connected && walletAddressStr && winNfts && looseNfts && winTransactions && looseTransactions) {
-      const cmd: NftWatcherCommand = {
-        walletAddressStr,
-        winNfts,
-        looseNfts,
-        winTransactions,
-        looseTransactions
+    if (connected && walletAddressStr) {
+      if(!nftWatcher) {
+        setNftWatcher(new WonTonNftWatchDog(Address.parse(walletAddressStr), nftStore));
       }
-
-      console.log(`Posting new message: ${JSON.stringify(cmd)}`);
-      worker.postMessage(cmd);
+    }    
+  }, [connected, walletAddressStr]);
+  
+  useEffect(() => {
+    const watch = async () => {
+      await nftWatcher?.poll();
+      await wait(POLL_TIMEOUT);
+      await watch();
     }
     
-  }, [worker, connected, walletAddressStr]);
-
-  useEffect(() => {
-    worker.onmessage = (ev) => {
-        console.log("isNftsEvent(ev.data): ", isNftsEvent(ev.data));
-        if (isNftsEvent(ev.data)) {
-          switch(ev.data.universe) {
-            case "WIN": 
-              console.log("Setting win universe: ", JSON.stringify(ev.data.nfts));
-              setWinNfts(ev.data.nfts);
-              setWinTransactions(ev.data.transactions)
-              break;
-            case "LOOSE":
-              console.log("Setting loose universe: ", JSON.stringify(ev.data.nfts));
-              setLooseNfts(ev.data.nfts);
-              setLooseTransactions(ev.data.transactions)
-              break;
-          }
-        }
-    }
-  }, [worker]);
+    if (nftWatcher) {
+      watch();  
+    }    
+  }, [nftWatcher]);
   
   return (
     <div>
@@ -173,23 +144,8 @@ function App() {
           </Flex>
         </Flex>  
         <Flex vertical={true} gap="middle">
-            { Object.keys(winNfts).map((nftId) => 
-              <Card
-                hoverable
-                style={{ width: '5rem' }}
-                styles={{ body: {backgroundColor: 'rgba(0, 255, 0, 1.0)', border: 0} }}
-                key={nftId}>
-                {nftId}
-              </Card>
-            )}
-            { Object.keys(looseNfts).map((nftId) => 
-              <Card
-                hoverable
-                style={{ width: '5rem' }}
-                styles={{ body: {backgroundColor: 'rgba(255, 0, 0, 1.0)', border: 0} }}
-                key={nftId}>
-                {nftId}
-              </Card>
+            { Object.keys(nftStore.nfts).map((nftId) =>
+              <NftItem nft={ nftStore.nfts[nftId] } />
             )}
         </Flex>
       </Flex>
