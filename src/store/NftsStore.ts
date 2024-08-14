@@ -15,7 +15,8 @@ export const useNftsStore = create<NftStore>()(
         deleteTransaction: (outMsgHash) => set({ transactions: deleteTransaction(outMsgHash, get().transactions) }),
         addNfts: (newNfts) => set({ nfts: { ...get().nfts, ...newNfts } }),
         addTransactions: (newTransactions) => set({ transactions: { ...get().transactions, ...newTransactions } }),
-        doesNftExists: (cType, nftIndex) => doesNftExists(get().nfts, cType, nftIndex)
+        doesNftExists: (cType, nftIndex) => doesNftExists(get().nfts, cType, nftIndex),
+        clean: () => set({ transactions: {}, nfts: {}}),
       }),
       {
         name: "nfts-storage"

@@ -15,14 +15,10 @@ const winCollectionAddress = Address.parse(win_nft_contract_str);
 const looseCollectionAddress = Address.parse(loose_nft_contract_str);
 
 export class WonTonNftWatchDog {
-    private readonly walletAddress: Address;
-    private readonly nftStore: NftStore;
     private readonly winWatchdog: NftWatchDog;
     private readonly looseWatchdog: NftWatchDog;
     
     constructor(walletAddress: Address, nftStore: NftStore) {
-        this.walletAddress = walletAddress;
-        this.nftStore = nftStore;
         this.winWatchdog = new NftWatchDog(nftStore , wontonPower, "WIN", winCollectionAddress, walletAddress);
         this.looseWatchdog = new NftWatchDog(nftStore, wontonPower, "LOOSE", looseCollectionAddress, walletAddress);
     }

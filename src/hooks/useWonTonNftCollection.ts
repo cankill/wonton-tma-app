@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
-import { useTonClient } from "./useTonClient";
-import { Address, fromNano, OpenedContract, toNano } from "@ton/core";
+import { Address, fromNano, OpenedContract } from "@ton/core";
 import { useAsyncInitialize } from "./useAsyncInitialize";
 import { WonTonNftCollection } from "../../modules/wonton-lib-common/src/contract-wrappers/WonTonNftCollection";
-import { useTonConnect } from "./useTonConnect";
-import { WonTonCollectionData } from "../../modules/wonton-lib-common/src/Types";
+import { WonTonCollectionData, WonTonCollectionInfo } from "../../modules/wonton-lib-common/src/Types";
 import { wait } from "../../modules/wonton-lib-common/src/PromisUtils";
+import { rateLimiter } from "../../modules/wonton-lib-common/src/WonTonClientProvider";
+import { useTonClient } from "./useTonClient";
 
-export function useWonTonNftCollectionContract(collectionAddressString: string) {
+export function useWonTonNftCollectionContract(collectionAddressString: string): WonTonCollectionInfo|undefined {
     const client = useTonClient();
-    const { sender } = useTonConnect();
-    const [contractInformation, setContractInformation] = useState<null | WonTonCollectionData>();
-
+    const [contractInformation, setContractInformation] = useState<WonTonCollectionData | undefined>();
     const [balance, setBalance] = useState<string>("");
 
     const nftCollectionContract = useAsyncInitialize(async () => {
@@ -24,8 +22,7 @@ export function useWonTonNftCollectionContract(collectionAddressString: string) 
     useEffect(() => {
         async function getData() {
             if (!nftCollectionContract) return;
-            
-            // setContractInformation(null);
+            await rateLimiter.limit();
             const details = await nftCollectionContract.getCollectionData();
             setContractInformation({
                 owner_address: details.owner_address,
@@ -34,21 +31,26 @@ export function useWonTonNftCollectionContract(collectionAddressString: string) 
             });
 
             if (client) {
+                await rateLimiter.limit();
                 const balance = await client.getBalance(nftCollectionContract.address);
                 setBalance(fromNano(balance));    
             }
 
-            await wait(10000);
+            await wait(11000);
             getData();
         }
 
         getData();
-    }, [nftCollectionContract]);
+    }, [nftCollectionContract, client]);
 
-    return {
-        contract_address: nftCollectionContract?.address.toString(),
-        contract_balance: balance,
-        ...contractInformation,
-    };
+    if (contractInformation && nftCollectionContract) {
+        return {
+            contract_address: nftCollectionContract.address.toString(),
+            contract_balance: balance,
+            contract_information: contractInformation,
+        };
+    } else {
+        return undefined;
+    }
 }
 

@@ -6,12 +6,12 @@ import { WonTonContract } from "../../modules/wonton-lib-common/src/contract-wra
 import { useTonConnect } from "./useTonConnect";
 import { WonTonData } from "../../modules/wonton-lib-common/src/Types";
 import { wait } from "../../modules/wonton-lib-common/src/PromisUtils";
+import { rateLimiter } from "../../modules/wonton-lib-common/src/WonTonClientProvider";
 
 export function useWonTonContract() {
     const client = useTonClient();
     const { sender } = useTonConnect();
     const [contractInformation, setContractInformation] = useState<null | WonTonData>();
-
     const [balance, setBalance] = useState<string>("");
 
     const wontonContract = useAsyncInitialize(async () => {
@@ -24,7 +24,7 @@ export function useWonTonContract() {
     useEffect(() => {
         async function getData() {
             if (!wontonContract) return;
-            // setContractInformation(null);
+            await rateLimiter.limit();
             const details = await wontonContract.getData();
             setContractInformation({
                 wonton_power: details.wonton_power,
@@ -35,6 +35,7 @@ export function useWonTonContract() {
             });
             
             if (client) {
+                await rateLimiter.limit();
                 const balance = await client.getBalance(wontonContract.address);
                 setBalance(fromNano(balance));    
             }
@@ -44,7 +45,7 @@ export function useWonTonContract() {
         }
 
         getData();
-    }, [wontonContract]);
+    }, [wontonContract, client]);
 
     return {
         contract_address: wontonContract?.address.toString(),

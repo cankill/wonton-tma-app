@@ -4,7 +4,7 @@ import { useTonConnectUI } from "@tonconnect/ui-react";
 export function useTonConnect(): {
     sender: Sender;
     connected: boolean;
-    walletAddressStr: string | undefined
+    walletAddressStr: string | undefined,
 } {
     const [tonConnectUI] = useTonConnectUI();
 
