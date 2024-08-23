@@ -2,7 +2,11 @@
 
 import { Message, Transaction } from "@ton/ton";
 import { Address } from '@ton/core'
-import { CollectionType, NftMeta, NftStore } from "../../modules/wonton-lib-common/src/Types";
+import {
+    CollectionType,
+    NftMeta,
+    NftStore
+} from "../../modules/wonton-lib-common/src/Types";
 import { isTransactionFresh, parseNftItemBody, parseNftMetaBody } from "../../modules/wonton-lib-common/src/TonUtils";
 import { wonTonClientProvider } from "../../modules/wonton-lib-common/src/WonTonClientProvider";
 import axios from "axios";
@@ -14,7 +18,6 @@ export class NftWatchDog {
     private readonly cType: CollectionType;
     private readonly collectionAddress: Address;
     private readonly walletAddress: Address;
-
     private readonly nftStore: NftStore;
 
     constructor(nftStore: NftStore, wonTonPower: number, cType: CollectionType, collectionAddress: Address, walletAddress: Address) {        
@@ -29,26 +32,28 @@ export class NftWatchDog {
         try {
             await this.readTransactions();
             await this.cleanOldRecords();
+
         } catch (ex) {   
-            var error = 'Unknown';
-            if (typeof ex === "string") {
-                error = ex.toUpperCase() // works, `e` narrowed to string
-            } else if (ex instanceof Error) {
-                error = ex.message // works, `e` narrowed to Error
-            }
+            // let error = 'Unknown';
+            // if (typeof ex === "string") {
+            //     error = ex.toUpperCase() // works, `e` narrowed to string
+            // } else if (ex instanceof Error) {
+            //     error = ex.message // works, `e` narrowed to Error
+            // }
             console.error(ex);
             // console.error(`FAN: ${JSON.stringify(ex)}`);
             // console.error(`FAN: ${error}`);
         }
-    };
+    }
     
     private async readTransactions(hash?: string, lt?: string, limit: number = 20) {
         const tonClient = await wonTonClientProvider.wonTonClient();
         const txs = await tonClient.getTransactions(this.collectionAddress, { limit: limit, archival: true, inclusive: false, lt, hash });
-        const freshTxs = txs.filter(tx => tx && isTransactionFresh(tx, new Date(), digDepthHours));
-        var hitBottom = freshTxs.length == 0 || freshTxs.length < limit;
-        var lastHash: string|undefined;
-        var lastLt: string|undefined; 
+        // const freshTxs = txs.filter(tx => tx && isTransactionFresh(tx, new Date(), digDepthHours));
+        const freshTxs = txs;
+        let hitBottom = freshTxs.length == 0 || freshTxs.length < limit;
+        let lastHash: string|undefined;
+        let lastLt: string|undefined;
 
         for (const tx of freshTxs) {
             const txHash = tx.hash().toString("base64");
@@ -70,21 +75,23 @@ export class NftWatchDog {
 
     async handleNftContractInTx(tx: Transaction) {
         if (tx.inMessage && tx.inMessage.body.beginParse().remainingBits > 0) {
-            console.log("handleNftContractInTx: 1");
             const { nftIndex, ownerAddress } = parseNftMetaBody(tx.inMessage);
-            console.log(`handleNftContractInTx: 2; ownerAddress: ${ownerAddress}; this.walletAddress: ${this.walletAddress}`);
             if (this.walletAddress.equals(ownerAddress)) {
-                console.log(`Found ${this.cType} NFT Transaction for #: ${nftIndex}`);
                 if (!this.nftStore.doesNftExists(this.cType, nftIndex)) {
+                    console.log(`Found new ${this.cType} NFT Transaction for #: ${nftIndex}`);
                     if(this.checkOutMessages(tx.outMessages.values())) {
                         const nft_meta = await this.fetchMeta(nftIndex);    
-                        this.nftStore.addNft({
+
+                        const newNft = {
                             owner_address: ownerAddress.toString(),
                             nft_index: nftIndex,
                             collection_type: this.cType,
                             wonton_power: this.wonTonPower,
-                            nft_meta
-                        });
+                            nft_meta,
+                            created_at: (tx.now * 1000).toString(),
+                        };
+
+                        this.nftStore.addNft(newNft);
                     }
                 }
             }

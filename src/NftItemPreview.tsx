@@ -1,4 +1,4 @@
-import { Card, Image } from "antd";
+import { Card } from "antd";
 import { Nft } from "../modules/wonton-lib-common/src/Types";
 
 export function NftItemPreview ( { nft }: {nft: Nft}) {

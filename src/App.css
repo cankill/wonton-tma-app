@@ -5,6 +5,10 @@
   /* text-align: center; */
 }
 
+.new-nft {
+    border: 2px solid green;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
