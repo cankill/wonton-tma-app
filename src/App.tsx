@@ -18,25 +18,23 @@ function App() {
   useNftWatcher();
   
   return (
-    <div>
-        <Flex vertical={true} gap="middle">
-          <Flex vertical={false} gap="middle">
-            <TonConnectButton />
-            <PlayButton />
-          </Flex>
-          <Flex vertical={false} gap="middle">
-              <Flex vertical={true} gap="small">
-                  <WonTonContractDetails />
-                  <WonTonNftCollectionContractDetails collection_type={'WIN'} collection_address={win_nft_contract_str} />
-                  <WonTonNftCollectionContractDetails collection_type={'LOOSE'} collection_address={loose_nft_contract_str} />
-              </Flex>
-              <Flex vertical={true} gap="middle">
-                  <NftCollection collection_type={'WIN'} />
-                  <NftCollection collection_type={'LOOSE'} />
-              </Flex>
-          </Flex>
-        </Flex>  
-    </div>
+      <Flex vertical={true} gap="middle">
+        <Flex vertical={false} gap="middle">
+          <TonConnectButton />
+          <PlayButton />
+        </Flex>
+        <Flex vertical={false} gap="middle">
+            <Flex vertical={true} gap="small">
+                <WonTonContractDetails />
+                <WonTonNftCollectionContractDetails collection_type={'WIN'} collection_address={win_nft_contract_str} />
+                <WonTonNftCollectionContractDetails collection_type={'LOOSE'} collection_address={loose_nft_contract_str} />
+            </Flex>
+            <Flex vertical={true} gap="middle">
+                <NftCollection collection_type={'WIN'} />
+                <NftCollection collection_type={'LOOSE'} />
+            </Flex>
+        </Flex>
+      </Flex>
   )
 }
 
