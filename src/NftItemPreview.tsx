@@ -1,11 +1,12 @@
-import {Card, Flex, Image} from "antd";
+import './App.css';
+import { Card, Image } from "antd";
 import { Nft } from "../modules/wonton-lib-common/src/Types";
 import {NftAttributes} from "./NftAttributes.tsx";
 
 export function NftItemPreview ( { nft }: {nft: Nft}) {
     return (
-      <Card hoverable>
-        <Flex vertical={true} gap="middle">
+      <Card hoverable bordered={false} style={{ width: '40Rem' }} className={"aaa"}>
+        {/*<Flex vertical={true} gap="middle">*/}
           <Image
             src={nft.nft_meta?.image}
             width={"30rem"}
@@ -18,7 +19,7 @@ export function NftItemPreview ( { nft }: {nft: Nft}) {
           <div><b>Name: </b>{nft.nft_meta?.name || "-"}</div>
           <div><b>Description: </b>{nft.nft_meta?.description || "-"}</div>
           {nft.nft_meta?.attributes && (<NftAttributes attributes={nft.nft_meta.attributes} />)}
-        </Flex>
+        {/*</Flex>*/}
       </Card>
     );
 }

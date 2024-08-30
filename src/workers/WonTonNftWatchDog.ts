@@ -23,7 +23,7 @@ export class WonTonNftWatchDog {
         this.looseWatchdog = new NftWatchDog(nftStore, wontonPower, "LOOSE", looseCollectionAddress, walletAddress);
     }
 
-    async poll() {
+    poll = async () => {
         await this.winWatchdog.digForNewNfts();
         await this.looseWatchdog.digForNewNfts();}
 }

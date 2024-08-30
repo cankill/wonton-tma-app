@@ -28,7 +28,7 @@ export class NftWatchDog {
         this.walletAddress = walletAddress;        
     }
 
-    async digForNewNfts() {
+    digForNewNfts = async () => {
         try {
             await this.readTransactions();
             await this.cleanOldRecords();
@@ -46,7 +46,7 @@ export class NftWatchDog {
         }
     }
     
-    private async readTransactions(hash?: string, lt?: string, limit: number = 20) {
+    private readTransactions = async (hash?: string, lt?: string, limit: number = 20) => {
         const tonClient = await wonTonClientProvider.wonTonClient();
         const txs = await tonClient.getTransactions(this.collectionAddress, { limit: limit, archival: true, inclusive: false, lt, hash });
         // const freshTxs = txs.filter(tx => tx && isTransactionFresh(tx, new Date(), digDepthHours));
@@ -73,7 +73,7 @@ export class NftWatchDog {
         }
     }
 
-    async handleNftContractInTx(tx: Transaction) {
+    private handleNftContractInTx = async (tx: Transaction) => {
         if (tx.inMessage && tx.inMessage.body.beginParse().remainingBits > 0) {
             const { nftIndex, ownerAddress } = parseNftMetaBody(tx.inMessage);
             if (this.walletAddress.equals(ownerAddress)) {
@@ -98,22 +98,22 @@ export class NftWatchDog {
         }
     }
 
-    private async fetchMeta(nftIndex: number): Promise<NftMeta> {
+    private fetchMeta = async (nftIndex: number): Promise<NftMeta> => {
         const response = await axios.get(`https://simplemoves.github.io/wonton-nft/${this.cType}/meta-${nftIndex}.json`);
         const meta: NftMeta = response.data 
         return meta;
     }
     
-    private checkOutMessages(messages?: Message[]): boolean {
-        return messages ? messages.some(this.ensureNftIsGenerated.bind(this)) : false;
+    private checkOutMessages = (messages?: Message[]): boolean => {
+        return messages ? messages.some(this.ensureNftIsGenerated) : false;
     }
 
-    private ensureNftIsGenerated(message: Message): boolean {
+    private ensureNftIsGenerated = (message: Message): boolean => {
         const { ownerAddress } = parseNftItemBody(message.body);
         return this.walletAddress.equals(ownerAddress);
     }
     
-    private async cleanOldRecords() {
+    private cleanOldRecords = async () => {
         const now = new Date();
         Object.keys(this.nftStore.transactions).forEach(txKey => {
             const tx = this.nftStore.transactions[txKey];

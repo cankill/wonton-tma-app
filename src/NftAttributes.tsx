@@ -6,7 +6,7 @@ export function NftAttributes ( { attributes }: {attributes: NftMetaAttributes[]
     return (
       <Card type="inner" title="Attributes:" bordered={true}>
         {attributes.map((attribute) => (
-            <div><b>{attribute.trait_type}: </b>{attribute.value}</div>
+            <div key={attribute.trait_type}><b>{attribute.trait_type}: </b>{attribute.value}</div>
         ))}
       </Card>
     );
