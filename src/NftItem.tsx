@@ -5,14 +5,14 @@ import {useMemo} from "react";
 
 export function NftItem ( { nft, isNew }: { nft: Nft, isNew: boolean } ) {
     const imageUrl = useMemo(() => nft.nft_meta?.image.substring(0, nft.nft_meta?.image.lastIndexOf("/")) + "/preview.png", [nft]);
-    console.log(`Nft previw: ${imageUrl}`);
+    // console.log(`Nft previw: ${imageUrl}`);
     return (
       <Image
         rootClassName={ isNew ? "new-nft" : "" }
         width={"3rem"}
         src={imageUrl}
         preview={{
-          destroyOnClose: true,
+          destroyOnClose: false,
           imageRender: () => (<NftItemPreview nft={nft} />),
           toolbarRender: () => null,
         }}

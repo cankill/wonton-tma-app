@@ -3,7 +3,7 @@ import { WonTonContract } from "../../modules/wonton-lib-common/src/contract-wra
 import { useTonConnect } from "./useTonConnect";
 import { wonTonClientProvider } from "../../modules/wonton-lib-common/src/WonTonClientProvider";
 
-const wonTonContractAddress = Address.parse(import.meta.env.VITE_WONTON_CONTRACT!);
+const wonTonContractAddress = Address.parse(import.meta.env.VITE_WONTON_CONTRACT_0!);
 const contract = new WonTonContract(wonTonContractAddress);
 
 export function useWonTonContract() {

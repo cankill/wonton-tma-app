@@ -5,7 +5,7 @@ import { wait } from "../../modules/wonton-lib-common/src/PromisUtils";
 import { wonTonClientProvider } from "../../modules/wonton-lib-common/src/WonTonClientProvider";
 import { parseNftDataRef } from "../../modules/wonton-lib-common/src/TonUtils";
 
-const wonTonContractAddress = Address.parse(import.meta.env.VITE_WONTON_CONTRACT!);
+const wonTonContractAddress = Address.parse(import.meta.env.VITE_WONTON_CONTRACT_0!);
 
 export function useWonTonContractInfo() {
     const [contractInformation, setContractInformation] = useState<WonTonInfo|undefined>();

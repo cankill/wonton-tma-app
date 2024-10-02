@@ -50,12 +50,12 @@ export class NftWatchDog {
         const tonClient = await wonTonClientProvider.wonTonClient();
         const txs = await tonClient.getTransactions(this.collectionAddress, { limit: limit, archival: true, inclusive: false, lt, hash });
         // const freshTxs = txs.filter(tx => tx && isTransactionFresh(tx, new Date(), digDepthHours));
-        const freshTxs = txs;
-        let hitBottom = freshTxs.length == 0 || freshTxs.length < limit;
-        let lastHash: string|undefined;
-        let lastLt: string|undefined;
+        // const freshTxs = txs;
+        let hitBottom = txs.length == 0 || txs.length < limit;
+        let lastHash: string | undefined;
+        let lastLt: string | undefined;
 
-        for (const tx of freshTxs) {
+        for (const tx of txs) {
             const txHash = tx.hash().toString("base64");
             if (!(txHash in this.nftStore.transactions)) {
                 console.log(`Found new transaction: ${txHash}, tx.now: ${new Date(tx.now * 1000)}`);
@@ -79,7 +79,9 @@ export class NftWatchDog {
             if (this.walletAddress.equals(ownerAddress)) {
                 if (!this.nftStore.doesNftExists(this.cType, nftIndex)) {
                     console.log(`Found new ${this.cType} NFT Transaction for #: ${nftIndex}`);
-                    if(this.checkOutMessages(tx.outMessages.values())) {
+                    if(await this.checkOutMessages(tx.outMessages.values())) {
+
+
                         const nft_meta = await this.fetchMeta(nftIndex);    
 
                         const newNft = {
@@ -104,8 +106,24 @@ export class NftWatchDog {
         return meta;
     }
     
-    private checkOutMessages = (messages?: Message[]): boolean => {
-        return messages ? messages.some(this.ensureNftIsGenerated) : false;
+    private checkOutMessages = async (messages?: Message[]): Promise<boolean> => {
+      const message = messages?.find(this.ensureNftIsGenerated)
+
+      if (!message) {
+          return false;
+      }
+
+      const nftAddress = message.info.dest;
+      if (nftAddress instanceof Address) {
+          console.log(`Nft address: ${nftAddress?.toString()}`);
+          const tonClient = await wonTonClientProvider.wonTonClient();
+          const {stack} = await tonClient.runMethod(nftAddress, "get_nft_data");
+          stack.skip(3);
+          const ownerAddress = stack.readAddress();
+          return this.walletAddress.equals(ownerAddress);
+      }
+
+      return false;
     }
 
     private ensureNftIsGenerated = (message: Message): boolean => {

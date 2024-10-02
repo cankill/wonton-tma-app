@@ -9,7 +9,7 @@ export const POLL_TIMEOUT: number = 5000 + getRandomInt(500);
 
 const wontonPower = 1;
 const win_nft_contract_str = import.meta.env.VITE_WIN_NFT_COLLECTION_ADDRESS;
-const loose_nft_contract_str = import.meta.env.VITE_LOOSE_NFT_COLLECTION_ADDRESS;
+const loose_nft_contract_str = import.meta.env.VITE_LOOSE_NFT_COLLECTION_ADDRESS_0;
 
 const winCollectionAddress = Address.parse(win_nft_contract_str);
 const looseCollectionAddress = Address.parse(loose_nft_contract_str);
@@ -25,5 +25,6 @@ export class WonTonNftWatchDog {
 
     poll = async () => {
         await this.winWatchdog.digForNewNfts();
-        await this.looseWatchdog.digForNewNfts();}
+        await this.looseWatchdog.digForNewNfts();
+    }
 }

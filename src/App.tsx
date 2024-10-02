@@ -11,7 +11,7 @@ import { useNftWatcher } from './hooks/useNftWatcher.ts';
 window.Buffer = window.Buffer || require("buffer").Buffer;
 
 const win_nft_contract_str = import.meta.env.VITE_WIN_NFT_COLLECTION_ADDRESS;
-const loose_nft_contract_str = import.meta.env.VITE_LOOSE_NFT_COLLECTION_ADDRESS;
+const loose_nft_contract_str = import.meta.env.VITE_LOOSE_NFT_COLLECTION_ADDRESS_0;
 
 function App() {
   
