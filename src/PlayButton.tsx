@@ -1,9 +1,7 @@
-import {useWonTonContract} from "./hooks/useWonTonContract.ts";
-import {useTonConnect} from "./hooks/useTonConnect.ts";
+import { useTonConnect } from "./hooks/useTonConnect.ts";
 
-export function PlayButton () {
-    const { sendBet } = useWonTonContract();
-    const { connected} = useTonConnect();
+export function PlayButton({ sendBet }: { sendBet: () => Promise<boolean> }) {
+    const { connected } = useTonConnect();
 
     return connected && (
         <button onClick={() => sendBet()}>

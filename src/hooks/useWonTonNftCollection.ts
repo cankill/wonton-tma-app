@@ -1,48 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
-import { Address, fromNano } from "@ton/core";
-import { WonTonCollectionInfo } from "../../modules/wonton-lib-common/src/Types";
-import { wait } from "../../modules/wonton-lib-common/src/PromisUtils";
+import { useCallback, useMemo } from "react";
+import { Address } from "@ton/core";
+import { CollectionData } from "../../modules/wonton-lib-common/src/Types";
 import { wonTonClientProvider } from "../../modules/wonton-lib-common/src/WonTonClientProvider";
-import { decodeOffChainContent } from "../../modules/wonton-lib-common/src/TonUtils";
+// import { testOnly } from "../store/NftsStore.ts";
+import { WonTonNftCollection } from "../../modules/wonton-lib-common/src/contract-wrappers/WonTonNftCollection.ts";
+import { tryNTimes } from "../../modules/wonton-lib-common/src/PromisUtils.ts";
 
-export function useWonTonNftCollectionContract(collectionAddressString: string): WonTonCollectionInfo|undefined {
-    const wonTonCollectionAddress = useMemo(() => Address.parse(collectionAddressString), [collectionAddressString]);
-    const [contractInformation, setContractInformation] = useState<WonTonCollectionInfo | undefined>();
-    const [started, setStarted] = useState<boolean>(false);
+export function useWonTonNftCollectionContract(wonTonCollectionAddress: Address) {
+    const contract = useMemo<WonTonNftCollection>(
+        () => WonTonNftCollection.createFromAddress(wonTonCollectionAddress), [ wonTonCollectionAddress ]);
 
-    useEffect(() => {
-        if (!started) {
-            console.log("useWonTonNftCollectionContract: started");
-            
-            async function pollingLoop() {
-                try {
-                    let client = await wonTonClientProvider.wonTonClient();
-                    const balance = await client.getBalance(wonTonCollectionAddress);
-                    client = await wonTonClientProvider.wonTonClient();
-                    const { stack } = await client.runMethod(wonTonCollectionAddress, 'get_collection_data');
-            
-                    setContractInformation({
-                        information: {
-                            next_item_index: stack?.readNumber(),
-                            collection_content_url: decodeOffChainContent(stack?.readCell()),
-                            owner_address: stack?.readAddress(),
-                        },
-                        balance: fromNano(balance),
-                        address: collectionAddressString
-                    });
-                } catch (ex) {
-                    console.error(ex);
-                }
+    const openContract = useCallback(async (contract: WonTonNftCollection) => {
+        const client = await wonTonClientProvider.wonTonClient();
+        return client.open(contract);
+    }, [])
 
-                await wait(11000);
-                pollingLoop();
-            }
+    const getData = useCallback<() => Promise<CollectionData>>( async () => {
+        // console.log(`calling getData for collection contract ${contract?.address.toString({ testOnly })}`);
+        return tryNTimes(async () => {
+            const openedContract = await openContract(contract);
+            return await openedContract.getData();
+        }, 3, 100);
+    }, [ contract ]);
 
-            setStarted(true);
-            pollingLoop();
-        }
-    }, [started]);
-
-    return contractInformation;
+    return {
+        contract,
+        getData,
+    };
 }
 

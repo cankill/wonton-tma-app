@@ -1,26 +1,23 @@
 import { WonTonNftWatchDog } from "../workers/WonTonNftWatchDog.ts";
-import { useTonConnect } from "./useTonConnect.ts";
 import { Address } from "@ton/ton";
 import { useEffect, useState } from "react";
-import { useNftsStore } from "../store/NftsStore.ts";
+// import { useNftsStore } from "../store/NftsStore.ts";
 
-export function useNftWatchDog() {
-    const nftStore = useNftsStore();
-    const {connected, walletAddressStr} = useTonConnect();
+export function useNftWatchDog(walletAddress: Address | undefined) {
+    // console.log(`walletAddress: ${walletAddress?.toString({testOnly: true})}`)
+    // const getStore = () => useNftsStore(walletAddress)();
     const [nftWatcher, setNftWatcher] = useState<WonTonNftWatchDog | undefined>();
 
     useEffect(() => {
-        if (connected) {
+        if (walletAddress) {
             console.log("Start nft watcher");
-            if (!nftWatcher && walletAddressStr) {
-                setNftWatcher(new WonTonNftWatchDog(Address.parse(walletAddressStr), nftStore));
-            }
-        } else {
-            console.log("Stop nft watcher");
-            setNftWatcher(undefined);
-            nftStore.clean();
+            setNftWatcher(new WonTonNftWatchDog(walletAddress));
+
+            return () => {
+                setNftWatcher(undefined);
+            };
         }
-    }, [connected, walletAddressStr]);
+    }, [walletAddress]);
 
     return nftWatcher;
 }

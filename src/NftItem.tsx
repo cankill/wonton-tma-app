@@ -4,7 +4,8 @@ import {NftItemPreview} from "./NftItemPreview.tsx";
 import {useMemo} from "react";
 
 export function NftItem ( { nft, isNew }: { nft: Nft, isNew: boolean } ) {
-    const imageUrl = useMemo(() => nft.nft_meta?.image.substring(0, nft.nft_meta?.image.lastIndexOf("/")) + "/preview.png", [nft]);
+    // const imageUrl = useMemo(() => nft.nft_meta?.image.substring(0, nft.nft_meta?.image.lastIndexOf("/")) + "/preview.png", [nft]);
+    const imageUrl = useMemo(() => nft.nft_meta?.image, [nft]);
     // console.log(`Nft previw: ${imageUrl}`);
     return (
       <Image

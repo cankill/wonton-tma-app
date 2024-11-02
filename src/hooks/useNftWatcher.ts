@@ -1,21 +1,29 @@
-import { POLL_TIMEOUT } from "../workers/WonTonNftWatchDog.ts";
-import { wait } from "../../modules/wonton-lib-common/src/PromisUtils.ts";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNftWatchDog } from "./useNftWatchDog.ts";
+import { getRandomInt } from "../../modules/wonton-lib-common/src/RandomUtils.ts";
+import { Address } from "@ton/core";
+import { useVisibilityChange } from "./useVisibilityChange.ts";
+import { useInterval } from "./useInterval.ts";
 
-export function useNftWatcher() {
-    const nftWatcher = useNftWatchDog();
+export const POLLING_INTERVAL: number = 5000 + getRandomInt(1000);
+const digDepthHours = import.meta.env.VITE_DIG_DEPTH_HOURS || 24;
+
+export function useNftWatcher(walletAddress: Address | undefined) {
+    const [ pollingInterval, setPollingInterval ] = useState<number | undefined>(POLLING_INTERVAL);
+    const isPageVisible = useVisibilityChange();
+    const nftWatcher = useNftWatchDog(walletAddress);
+
     useEffect(() => {
-        if (nftWatcher) {
-            const watch = async () => {
-                if (nftWatcher) {
-                    await nftWatcher.poll();
-                    await wait(POLL_TIMEOUT);
-                    await watch();
-                }
-            }
-
-            watch();
+        if (isPageVisible && nftWatcher) {
+            setPollingInterval(POLLING_INTERVAL);
+        } else {
+            setPollingInterval(undefined);
         }
-    }, [nftWatcher]);
+    }, [ isPageVisible, nftWatcher ]);
+
+    useInterval(async () => {
+        // console.log("Polling nfts...")
+        await nftWatcher?.poll();
+        this.cleanOldRecords(digDepthHours);
+    }, pollingInterval);
 }

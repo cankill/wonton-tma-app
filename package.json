@@ -11,6 +11,7 @@
     "watch": "tsc --noEmit --watch"
   },
   "dependencies": {
+    "@ant-design/icons": "^5.5.1",
     "@orbs-network/ton-access": "^2.3.3",
     "@ton/blueprint": "^0.22.0",
     "@ton/core": "~0.57.0",

@@ -1,144 +1,162 @@
 /* eslint-disable no-restricted-globals */
 
-import { Message, Transaction } from "@ton/ton";
+import { Transaction } from "@ton/ton";
 import { Address } from '@ton/core'
-import {
-    CollectionType,
-    NftMeta,
-    NftStore
-} from "../../modules/wonton-lib-common/src/Types";
-import { isTransactionFresh, parseNftItemBody, parseNftMetaBody } from "../../modules/wonton-lib-common/src/TonUtils";
+import { AddNftFunction, AddTransactionFunction, CheckNftOwner, CleanOldRecords, CleanOldRecordsSchema, CollectionType, DoesTransactionStored, Nft, NftFilteringFunction, NftMeta, NftsHistory, NftStore, SimpleTransactionHistory, TransactionHistory } from "../../modules/wonton-lib-common/src/Types";
+import { isAddress, isNftTransfer, isTransactionFresh } from "../../modules/wonton-lib-common/src/TonUtils";
 import { wonTonClientProvider } from "../../modules/wonton-lib-common/src/WonTonClientProvider";
 import axios from "axios";
+import { addTransaction, doesTransactionStored, testOnly } from "../store/NftsStore.ts";
+import { tryNTimes } from "../../modules/wonton-lib-common/src/PromisUtils.ts";
+import { printJson } from "../../modules/wonton-lib-common/src/ErrorHandler.ts";
+// import { getErrorMessage } from "../../modules/wonton-lib-common/src/ErrorHandler.ts";
 
-const digDepthHours = import.meta.env.VITE_DIG_DEPTH_HOURS || 24;
+// const nftItemCode = import.meta.env.VITE_NFT_ITEM_CODE;
 
 export class NftWatchDog {
-    private readonly wonTonPower: number;
-    private readonly cType: CollectionType;
-    private readonly collectionAddress: Address;
-    private readonly walletAddress: Address;
-    private readonly nftStore: NftStore;
+    readonly wonTonPower: number;
+    readonly cType: CollectionType;
+    readonly collectionAddress: Address;
+    readonly walletAddress: Address;
 
-    constructor(nftStore: NftStore, wonTonPower: number, cType: CollectionType, collectionAddress: Address, walletAddress: Address) {        
-        this.nftStore = nftStore;
+    constructor(wonTonPower: number,
+                cType: CollectionType,
+                collectionAddress: Address,
+                walletAddress: Address) {
         this.wonTonPower = wonTonPower;
         this.cType = cType;
         this.collectionAddress = collectionAddress;
-        this.walletAddress = walletAddress;        
+        this.walletAddress = walletAddress;
     }
 
-    digForNewNfts = async () => {
+    digForNewNfts = async (store: { transactions: TransactionHistory, nfts: NftsHistory }) => {
         try {
-            await this.readTransactions();
-            await this.cleanOldRecords();
-
-        } catch (ex) {   
-            // let error = 'Unknown';
-            // if (typeof ex === "string") {
-            //     error = ex.toUpperCase() // works, `e` narrowed to string
-            // } else if (ex instanceof Error) {
-            //     error = ex.message // works, `e` narrowed to Error
-            // }
-            console.error(ex);
-            // console.error(`FAN: ${JSON.stringify(ex)}`);
-            // console.error(`FAN: ${error}`);
+            await this.readTransactions(store);
+        } catch (ex) {
+            // @ts-ignore
+            console.error(ex.message)
+            // @ts-ignore
+            console.error(ex.stackTrace)
         }
     }
-    
-    private readTransactions = async (hash?: string, lt?: string, limit: number = 20) => {
-        const tonClient = await wonTonClientProvider.wonTonClient();
-        const txs = await tonClient.getTransactions(this.collectionAddress, { limit: limit, archival: true, inclusive: false, lt, hash });
+
+    updateNftsOwner = async () => {
+        try {
+            console.log(`updateNftsOwner`);
+            await this.updateNfts();
+        } catch (ex) {
+            // @ts-ignore
+            console.error(ex.message)
+        }
+    }
+
+    private readTransactions = async (store: { transactions: SimpleTransactionHistory, nfts: NftsHistory }, hash?: string, lt?: string, limit: number = 3): Promise<{ transactions: SimpleTransactionHistory, nfts: NftsHistory }> => {
+        const txs = await tryNTimes(async () => this.requestTransactionList(hash, lt, limit), 3, 500);
         // const freshTxs = txs.filter(tx => tx && isTransactionFresh(tx, new Date(), digDepthHours));
-        // const freshTxs = txs;
         let hitBottom = txs.length == 0 || txs.length < limit;
         let lastHash: string | undefined;
         let lastLt: string | undefined;
 
+        let transactions = store.transactions;
+        let nfts = store.nfts;
         for (const tx of txs) {
             const txHash = tx.hash().toString("base64");
-            if (!(txHash in this.nftStore.transactions)) {
-                console.log(`Found new transaction: ${txHash}, tx.now: ${new Date(tx.now * 1000)}`);
-                await this.handleNftContractInTx(tx);
-                this.nftStore.addTransaction(txHash, { now: tx.now });
+            if (!doesTransactionStored(transactions, txHash)) {
+                // console.log(`Found new transaction: ${txHash}, tx.now: ${new Date(tx.now * 1000)}`);
+                nfts = await this.handleWalletInTxs(nfts, tx);
+                transactions = addTransaction(txHash, { hash: txHash, lt: tx.lt, now: tx.now }, transactions);
                 lastHash = txHash;
                 lastLt = tx.lt.toString();
             } else {
                 hitBottom = true;
             }
         }
-        
-        if (! hitBottom) {
-            await this.readTransactions(lastHash, lastLt);
+
+        if (!hitBottom) {
+            return await this.readTransactions({ transactions, nfts }, lastHash, lastLt);
         }
+
+        return { transactions, nfts };
     }
 
-    private handleNftContractInTx = async (tx: Transaction) => {
-        if (tx.inMessage && tx.inMessage.body.beginParse().remainingBits > 0) {
-            const { nftIndex, ownerAddress } = parseNftMetaBody(tx.inMessage);
-            if (this.walletAddress.equals(ownerAddress)) {
-                if (!this.nftStore.doesNftExists(this.cType, nftIndex)) {
-                    console.log(`Found new ${this.cType} NFT Transaction for #: ${nftIndex}`);
-                    if(await this.checkOutMessages(tx.outMessages.values())) {
+    private async requestTransactionList(hash?: string, lt?: string, limit: number = 20) {
+        const tonClient = await wonTonClientProvider.wonTonClient();
+        return await tonClient.getTransactions(this.walletAddress, { limit: limit, archival: true, inclusive: false, lt, hash });
+    }
 
+    private handleWalletInTxs = async (nfts: NftsHistory, tx: Transaction): Promise<NftsHistory> => {
+        const inMsg = tx.inMessage;
+        const nftAddress = inMsg?.info.src;
+        if (isAddress(nftAddress) && isNftTransfer(inMsg, this.collectionAddress)) {
+            const nftData = await tryNTimes(() => this.getNftData(nftAddress), 3, 500);
+            const nftWontonPower = this.wonTonPower + 1;
+            if (this.walletAddress.equals(nftData.owner)) {
+                if (!this.doesNftExists(this.cType, nftWontonPower, nftData.index)) {
+                    console.log(`wontonPower: ${this.wonTonPower} | Found new ${this.cType} NFT Transaction for #: ${nftData.index}`);
+                    const nft_meta = await this.fetchMeta(nftWontonPower, nftData.index);
+                    const newNft: Nft = {
+                        nftAddress: nftAddress,
+                        owner_address: nftData.owner.toString({ testOnly }),
+                        nft_index: nftData.index,
+                        collection_type: this.cType,
+                        wonton_power: nftWontonPower,
+                        nft_meta,
+                        created_at: (tx.now * 1000).toString(),
+                    };
 
-                        const nft_meta = await this.fetchMeta(nftIndex);    
-
-                        const newNft = {
-                            owner_address: ownerAddress.toString(),
-                            nft_index: nftIndex,
-                            collection_type: this.cType,
-                            wonton_power: this.wonTonPower,
-                            nft_meta,
-                            created_at: (tx.now * 1000).toString(),
-                        };
-
-                        this.nftStore.addNft(newNft);
-                    }
+                    this.addNft(newNft);
                 }
             }
         }
     }
 
-    private fetchMeta = async (nftIndex: number): Promise<NftMeta> => {
-        const response = await axios.get(`https://simplemoves.github.io/wonton-nft/${this.cType}/meta-${nftIndex}.json`);
-        const meta: NftMeta = response.data 
+    private fetchMeta = async (wontonPower: number, nftIndex: number): Promise<NftMeta> => {
+        const response = await axios.get(`https://simplemoves.github.io/wonton-nft/${this.cType}/${wontonPower}/meta-${nftIndex}.json`);
+        const meta: NftMeta = response.data
         return meta;
     }
-    
-    private checkOutMessages = async (messages?: Message[]): Promise<boolean> => {
-      const message = messages?.find(this.ensureNftIsGenerated)
 
-      if (!message) {
-          return false;
-      }
-
-      const nftAddress = message.info.dest;
-      if (nftAddress instanceof Address) {
-          console.log(`Nft address: ${nftAddress?.toString()}`);
-          const tonClient = await wonTonClientProvider.wonTonClient();
-          const {stack} = await tonClient.runMethod(nftAddress, "get_nft_data");
-          stack.skip(3);
-          const ownerAddress = stack.readAddress();
-          return this.walletAddress.equals(ownerAddress);
-      }
-
-      return false;
+    private checkNftOwner = async (nftAddress: Address): Promise<boolean> => {
+        // console.log(`ownerAddress: ${printJson(this.walletAddress)}`);
+        // console.log(`Nft address: ${printJson(nftAddress)}`);
+        // console.log(`Nft address is address: ${Address.isAddress(nftAddress)}`);
+        // console.log(`Checking for the owner Nft address: ${nftAddress?.toString({ testOnly })}`);
+        const nft = await tryNTimes(() => this.getNftData(nftAddress), 3, 500);
+        // console.log(`Nft's owner address: ${nftAddress?.toString({ testOnly })}`);
+        // console.log(`Wallet address: ${this.walletAddress?.toString({ testOnly })}`);
+        // console.log(`this.walletAddress.equals(nft.owner): ${this.walletAddress.equals(nft.owner)}`);
+        return this.walletAddress.equals(nft.owner);
     }
 
-    private ensureNftIsGenerated = (message: Message): boolean => {
-        const { ownerAddress } = parseNftItemBody(message.body);
-        return this.walletAddress.equals(ownerAddress);
+    private async getNftData(nftAddress: Address) {
+        const tonClient = await wonTonClientProvider.wonTonClient();
+        const { stack } = await tonClient.runMethod(nftAddress, "get_nft_data");
+        const inited = stack.readBoolean();
+        const index = stack.readNumber();
+        const collection = stack.readAddress();
+        const owner = stack.readAddress();
+
+        return {
+            inited,
+            index,
+            collection,
+            owner,
+        };
     }
-    
-    private cleanOldRecords = async () => {
-        const now = new Date();
-        Object.keys(this.nftStore.transactions).forEach(txKey => {
-            const tx = this.nftStore.transactions[txKey];
-            if (!isTransactionFresh(tx, now, digDepthHours)) {
-                console.log(`Delete old transaction hash: ${txKey}`);
-                this.nftStore.deleteTransaction(txKey);
+
+    private updateNfts = async () => {
+        Object.keys(this.nfts).forEach(nftKey => {
+            const nft: Nft = this.nfts[nftKey];
+            // console.log(printJson(nft));
+            if (!this.checkNftOwner(nft.nftAddress)) {
+                console.log(`Delete transferred nft: ${nftKey}`);
+                this.nftStore.deleteNft(nftKey);
             }
         });
     }
+
+    dump = (): String => `NftWatchDog(wontonPower: ${this.wonTonPower}, ` +
+                         `cType: ${this.cType}, ` +
+                         `collectionAddress: ${this.collectionAddress.toString({ testOnly })}, ` +
+                         `walletAddress: ${this.walletAddress.toString({ testOnly })})`;
 }

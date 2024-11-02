@@ -1,30 +1,37 @@
-import { Sender, SenderArguments } from "@ton/core";
-import {useTonConnectUI, useTonWallet} from "@tonconnect/ui-react";
+import { Address, Sender, SenderArguments } from "@ton/core";
+import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
+import { address } from "../../modules/wonton-lib-common/src/TonUtils.ts";
+import { useEffect, useState } from "react";
 
 export function useTonConnect(): {
     sender: Sender;
     connected: boolean;
-    walletAddressStr: string | undefined,
+    walletAddress: Address | undefined,
 } {
-    const [tonConnectUI] = useTonConnectUI();
-    const wallet = useTonWallet();
+    const [ tonConnectUI ] = useTonConnectUI();
+    const wallet = useTonAddress();
+    const [ walletAddress, setWalletAddress ] = useState(address(wallet));
+
+    useEffect(() => {
+        setWalletAddress(address(wallet));
+    }, [ wallet ])
 
     return {
         sender: {
             send: async (args: SenderArguments) => {
-                tonConnectUI.sendTransaction({
-                    messages: [
-                        {
-                            address: args.to.toString(),
-                            amount: args.value.toString(),
-                            payload: args.body?.toBoc().toString("base64")
-                        }
-                    ],
-                    validUntil: Date.now() + 5 * 60 * 1000,
-                });
+                await tonConnectUI.sendTransaction({
+                                                 messages: [
+                                                     {
+                                                         address: args.to.toString(),
+                                                         amount: args.value.toString(),
+                                                         payload: args.body?.toBoc().toString("base64"),
+                                                     },
+                                                 ],
+                                                 validUntil: Date.now() + 5 * 60 * 1000,
+                                             });
             },
         },
         connected: tonConnectUI.connected,
-        walletAddressStr: wallet?.account.address,
+        walletAddress,
     }
 }

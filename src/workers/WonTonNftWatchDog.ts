@@ -2,29 +2,25 @@
 
 import { Address } from "@ton/ton";
 import { NftWatchDog } from "./NftWatchDog";
-import { NftStore} from "../../modules/wonton-lib-common/src/Types";
-import { getRandomInt } from "../../modules/wonton-lib-common/src/RandomUtils";
-
-export const POLL_TIMEOUT: number = 5000 + getRandomInt(500);
-
-const wontonPower = 1;
-const win_nft_contract_str = import.meta.env.VITE_WIN_NFT_COLLECTION_ADDRESS;
-const loose_nft_contract_str = import.meta.env.VITE_LOOSE_NFT_COLLECTION_ADDRESS_0;
-
-const winCollectionAddress = Address.parse(win_nft_contract_str);
-const looseCollectionAddress = Address.parse(loose_nft_contract_str);
+import { globalUniversesHolder } from "../store/NftsStore.ts";
+import { NftsHistory, TransactionHistory } from "../../modules/wonton-lib-common/src/Types.ts";
 
 export class WonTonNftWatchDog {
-    private readonly winWatchdog: NftWatchDog;
-    private readonly looseWatchdog: NftWatchDog;
+    private readonly watchdogs: NftWatchDog[] = [];
 
-    constructor(walletAddress: Address, nftStore: NftStore) {
-        this.winWatchdog = new NftWatchDog(nftStore , wontonPower, "WIN", winCollectionAddress, walletAddress);
-        this.looseWatchdog = new NftWatchDog(nftStore, wontonPower, "LOOSE", looseCollectionAddress, walletAddress);
+    constructor(walletAddress: Address) {
+        this.watchdogs = Object.values(globalUniversesHolder).flatMap(universes => {
+            return [
+                new NftWatchDog(universes.wonTonPower, "WIN", universes.winUniverse.collection, walletAddress),
+                new NftWatchDog(universes.wonTonPower, "LOOSE", universes.looseUniverse.collection, walletAddress),
+            ];
+        })
     }
 
-    poll = async () => {
-        await this.winWatchdog.digForNewNfts();
-        await this.looseWatchdog.digForNewNfts();
+    poll = async ({ transactions, nfts }: { transactions: TransactionHistory, nfts: NftsHistory }) => {
+        for (const watchDog of this.watchdogs) {
+            await watchDog.digForNewNfts(transactions, nfts);
+            // await watchDog.updateNftsOwner();
+        }
     }
 }
