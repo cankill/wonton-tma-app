@@ -1,6 +1,6 @@
 import { useTonConnect } from "./hooks/useTonConnect.ts";
 
-export function PlayButton({ sendBet }: { sendBet: () => Promise<boolean> }) {
+export function PlayButton({ sendBet }: { sendBet: () => Promise<boolean | undefined> }) {
     const { connected } = useTonConnect();
 
     return connected && (

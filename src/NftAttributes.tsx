@@ -1,6 +1,6 @@
 import './App.css'
 import {Card } from "antd";
-import { NftMetaAttributes } from "../modules/wonton-lib-common/src/Types";
+import { NftMetaAttributes } from "@wonton-lib/Types.ts";
 
 export function NftAttributes ( { attributes }: {attributes: NftMetaAttributes[]}) {
     return (

@@ -1,6 +1,6 @@
 import { Address, Sender, SenderArguments } from "@ton/core";
 import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
-import { address } from "../../modules/wonton-lib-common/src/TonUtils.ts";
+import { address } from "@wonton-lib/TonUtils.ts";
 import { useEffect, useState } from "react";
 
 export function useTonConnect(): {

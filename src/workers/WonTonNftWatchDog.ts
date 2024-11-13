@@ -3,7 +3,7 @@
 import { Address } from "@ton/ton";
 import { NftWatchDog } from "./NftWatchDog";
 import { globalUniversesHolder } from "../store/NftsStore.ts";
-import { NftsHistory, TransactionHistory } from "../../modules/wonton-lib-common/src/Types.ts";
+import { PlainNftStore } from "@wonton-lib/Types.ts";
 
 export class WonTonNftWatchDog {
     private readonly watchdogs: NftWatchDog[] = [];
@@ -17,10 +17,13 @@ export class WonTonNftWatchDog {
         })
     }
 
-    poll = async ({ transactions, nfts }: { transactions: TransactionHistory, nfts: NftsHistory }) => {
+    poll = async (nftStore: PlainNftStore): Promise<PlainNftStore> => {
+        let newNftStore = nftStore;
         for (const watchDog of this.watchdogs) {
-            await watchDog.digForNewNfts(transactions, nfts);
-            // await watchDog.updateNftsOwner();
+            newNftStore = await watchDog.digForNewNfts(newNftStore);
+            newNftStore = await watchDog.updateNftsOwner(newNftStore);
         }
+
+        return newNftStore;
     }
 }

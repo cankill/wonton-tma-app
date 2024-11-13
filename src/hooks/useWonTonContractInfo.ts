@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Address, fromNano } from "@ton/core";
-import { WonTonInfo } from "../../modules/wonton-lib-common/src/Types";
-import { wait } from "../../modules/wonton-lib-common/src/PromisUtils";
-import { wonTonClientProvider } from "../../modules/wonton-lib-common/src/WonTonClientProvider";
-import { parseNftDataRef } from "../../modules/wonton-lib-common/src/TonUtils";
+import { WonTonInfo } from "@wonton-lib/Types.ts";
+import { wait } from "@wonton-lib/PromisUtils.ts";
+import { wonTonClientProvider } from "@wonton-lib/WonTonClientProvider.ts";
+import { parseNftDataRef } from "@wonton-lib/TonUtils.ts";
 
 export function useWonTonContractInfo(wonTonContractAddress: Address) {
     const [address, setAddress] = useState<Address>(wonTonContractAddress);

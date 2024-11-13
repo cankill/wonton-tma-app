@@ -1,12 +1,13 @@
 import { Card, Space } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CollectionData, CollectionType, } from "../modules/wonton-lib-common/src/Types";
+import { CollectionData, CollectionType } from "@wonton-lib/Types.ts";
 import { Address, fromNano } from "@ton/core";
 import { testOnly } from "./store/NftsStore.ts";
 import { ReloadOutlined } from "@ant-design/icons";
 
 export function WonTonNftCollectionContractDetails({ collectionAddress, collectionType, getData }:
-                                                       { collectionAddress: Address, collectionType: CollectionType, getData: () => Promise<CollectionData>, }) {
+    { collectionAddress: Address, collectionType: CollectionType, getData: () => Promise<CollectionData | undefined>, }) {
+
     const caption = useMemo(() => `WonTon ${collectionType} NFT Collection Contract Details`, [ collectionType ]);
     const [ info, setInfo ] = useState<CollectionData | undefined>();
 

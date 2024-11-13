@@ -1,5 +1,5 @@
 import { Card, Space } from "antd";
-import { WonTonData } from "../modules/wonton-lib-common/src/Types.ts";
+import { WonTonData } from "@wonton-lib/Types.ts";
 import { useCallback, useEffect, useState } from "react";
 import { ReloadOutlined } from "@ant-design/icons";
 import { PlayButton } from "./PlayButton.tsx";
@@ -10,7 +10,8 @@ import { useInterval } from "./hooks/useInterval.ts";
 import { POLLING_INTERVAL } from "./hooks/useNftWatcher.ts";
 
 export function WonTonContractDetails({ getData, sendBet, wontonAddress, wontonPower }:
-                                          { getData: () => Promise<WonTonData>, sendBet: () => Promise<boolean>, wontonAddress: Address, wontonPower: number }) {
+    { getData: () => Promise<WonTonData | undefined>, sendBet: () => Promise<boolean | undefined>, wontonAddress: Address, wontonPower: number }) {
+
     const [ pollingInterval, setPollingInterval ] = useState<number | undefined>(POLLING_INTERVAL);
     const [ info, setInfo ] = useState<WonTonData | undefined>();
     const isPageVisible = useVisibilityChange();

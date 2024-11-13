@@ -1,5 +1,5 @@
 import { Image } from "antd";
-import { Nft } from "../modules/wonton-lib-common/src/Types";
+import { Nft } from "@wonton-lib/Types.ts";
 import {NftItemPreview} from "./NftItemPreview.tsx";
 import {useMemo} from "react";
 
