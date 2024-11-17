@@ -11,7 +11,7 @@ export function NftCollection({ collection_type, walletAddress }: { collection_t
         const filtered = nftStore.filteredNfts(walletAddressStr, collection_type);
         console.log(`Filtered size for ${collection_type}: ${Object.keys(filtered).length}`);
         return filtered;
-    }, [ nftStore.store(walletAddressStr).nfts ]);
+    }, [ nftStore ]);
 
     const newNft = useMemo(() => {
         return nftStore.newNft(walletAddressStr);

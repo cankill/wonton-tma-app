@@ -6,8 +6,9 @@ import { BEUniverses, CollectionType, FOUND, GetNftData, isNft, NFT, Nft, NftMet
 import { isTonAddress, possiblyNftTransfer } from "@wonton-lib/TonUtils.ts";
 import { wonTonClientProvider } from "@wonton-lib/WonTonClientProvider.ts";
 import axios from "axios";
-import { testOnly } from "../store/NftsStore.ts";
 import { tryNTimes } from "@wonton-lib/PromisUtils.ts";
+import { getErrorMessage } from "@wonton-lib/ErrorHandler.ts";
+import { testOnly } from "../store/NftsStore.ts";
 // import { getErrorMessage } from "../../modules/wonton-lib-common/src/ErrorHandler.ts";
 
 // const nftItemCode = import.meta.env.VITE_NFT_ITEM_CODE;
@@ -34,7 +35,7 @@ const readTransactions = async (walletAddress: Address,
 
     const innerRead = async (hash?: string, lt?: string, limit: number = 30) => {
         const newTransactions = await tryRequestTransactionList(walletAddress, hash, lt, limit);
-        console.log(`Received ${newTransactions?.length} transactions`);
+        // console.log(`Received ${newTransactions?.length} transactions`);
         if (!newTransactions) { return; }
 
         const hitBottom = newTransactions.length == 0 || newTransactions.length < limit;
@@ -60,7 +61,7 @@ const processTransactions = async (walletAddress: Address,
         const txHash = tx.hash().toString("base64");
         if (!get().isTransactionProcessed(walletAddressStr, txHash)) {
             get().addTransaction(walletAddressStr, { hash: txHash, lt: tx.lt, now: tx.now, state: FOUND });
-            console.log(`Found unprocessed transaction: ${txHash}, tx.now: ${new Date(tx.now * 1000)}`);
+            console.log(`Found unprocessed transaction: ${txHash}, tx.now: ${new Date(tx.now * 1000).toISOString()}`);
             const success = await handleWalletInTxs(walletAddress, walletAddressStr, universes, tx, get);
             if (success) {
                 get().markTransactionAsProcessed(walletAddressStr, txHash);
@@ -119,6 +120,7 @@ const handleTx = async (cType: CollectionType,
     tx: Transaction,
     nftData: GetNftData,
     get: () => NftStore): Promise<Nft | NonNft | undefined> => {
+    console.log(`Run handleTx for: ${cType}`);
     const collection = cType === WIN ? universes.winUniverse.collection : universes.looseUniverse.collection;
     const nftWontonPower = universes.wonTonPower + 1;
     console.log(`wallet address: ${walletAddressStr}`);
@@ -131,8 +133,8 @@ const handleTx = async (cType: CollectionType,
             const nft_meta = await fetchMeta(cType, nftWontonPower, nftData.index);
             return {
                 type: NFT,
-                nft_address: nftAddress,
-                owner_address: nftData.owner,
+                nft_address: nftAddress.toString({ testOnly }),
+                owner_address: nftData.owner.toString({ testOnly }),
                 nft_index: nftData.index,
                 collection_type: cType,
                 wonton_power: nftWontonPower,
@@ -152,16 +154,20 @@ const fetchMeta = async (cType: CollectionType, wontonPower: number, nftIndex: n
     return response.data;
 }
 
-export const checkNftOwner = async (nftAddress: Address, walletAddress: Address): Promise<boolean> => {
+export const checkNftOwner = async (nftAddress: Address, walletAddress: Address) => {
     // console.log(`ownerAddress: ${printJson(this.walletAddress)}`);
     // console.log(`Nft address: ${printJson(nftAddress)}`);
     // console.log(`Nft address is address: ${Address.isAddress(nftAddress)}`);
-    // console.log(`Checking for the owner Nft address: ${nftAddress?.toString({ testOnly })}`);
-    const nft = await tryGetNftData(nftAddress);
+    // console.log(printJson(nftAddress));
+    const nft = await getNftDataOrUndefined(nftAddress);
     // console.log(`Nft's owner address: ${nftAddress?.toString({ testOnly })}`);
     // console.log(`Wallet address: ${this.walletAddress?.toString({ testOnly })}`);
     // console.log(`this.walletAddress.equals(nft.owner): ${this.walletAddress.equals(nft.owner)}`);
-    return !nft!! || walletAddress.equals(nft.owner);
+    const ownershipApproved = !nft!! || walletAddress.equals(nft.owner);
+    return {
+        ownershipApproved,
+        owner: ownershipApproved ? walletAddress : nft.owner,
+    };
 }
 
 const getNftData = async (nftAddress: Address) => {
@@ -182,6 +188,16 @@ const getNftData = async (nftAddress: Address) => {
 
 const tryRequestTransactionList = async (walletAddress: Address, hash?: string, lt?: string, limit: number = 20) =>
     tryNTimes(async () => requestTransactionList(walletAddress, hash, lt, limit), 5, 500);
+
+const getNftDataOrUndefined = async (nftAddress: Address) => {
+    try {
+        return getNftData(nftAddress);
+    } catch (error) {
+        console.warn(`Get NFT Data failed with: ${getErrorMessage(error)}`);
+    }
+
+    return undefined;
+}
 
 const tryGetNftData = async (nftAddress: Address) =>
     tryNTimes(() => getNftData(nftAddress), 5, 500);

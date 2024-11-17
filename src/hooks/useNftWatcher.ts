@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-// import { useNftWatchDog } from "./useNftWatchDog.ts";
 import { getRandomInt } from "@wonton-lib/RandomUtils.ts";
 import { Address } from "@ton/core";
 import { useVisibilityChange } from "./useVisibilityChange.ts";
@@ -27,12 +26,9 @@ export function useNftWatcher(walletAddress: Address | undefined) {
     useEffect(() => {
         const poll = async () => {
             if (walletAddress && pollingInterval) {
-                console.log("Polling nfts...");
+                console.log(`${new Date().getTime()} | Polling nfts...`);
                 await nftStore.poll(walletAddress);
-                console.log(`Polling nfts finished`);
-                console.log("Checking nfts ownership change...");
                 await nftStore.updateNftOwner(walletAddress);
-                console.log(`Checking nfts ownership change finished`);
                 // cleanOldRecordsRef.current(digDepthHours);
                 await wait(pollingInterval);
                 await poll();

@@ -3,7 +3,7 @@ import { Address, fromNano } from "@ton/core";
 import { WonTonInfo } from "@wonton-lib/Types.ts";
 import { wait } from "@wonton-lib/PromisUtils.ts";
 import { wonTonClientProvider } from "@wonton-lib/WonTonClientProvider.ts";
-import { parseNftDataRef } from "@wonton-lib/TonUtils.ts";
+import { parseNftDataRef, parseReferralProxyRef } from "@wonton-lib/TonUtils.ts";
 
 export function useWonTonContractInfo(wonTonContractAddress: Address) {
     const [address, setAddress] = useState<Address>(wonTonContractAddress);
@@ -18,17 +18,31 @@ export function useWonTonContractInfo(wonTonContractAddress: Address) {
                 try {
                     let client = await wonTonClientProvider.wonTonClient();
                     const { stack } = await client.runMethod(address, 'get_information');
-                    setInfo({
-                        balance: fromNano(stack?.readBigNumber()),
-                        wonton_power: stack?.readNumber(),
-                        wonton_prize: stack?.readBigNumber(),
-                        bettors_count: stack?.readNumber(),
-                        first_bettor: stack?.readAddressOpt(),
-                        second_bettor: stack?.readAddressOpt(),
-                        nft_data_ref: parseNftDataRef(stack?.readCell()),
-
-                        contract_address: address.toString()
-                    });
+                    if (stack.remaining === 7) {
+                        setInfo({
+                            balance: fromNano(stack.readBigNumber()),
+                            wonton_power: stack.readNumber(),
+                            wonton_prize: stack.readBigNumber(),
+                            bettors_count: stack.readNumber(),
+                            first_bettor: stack.readAddressOpt(),
+                            second_bettor: stack.readAddressOpt(),
+                            referral_proxy: { active: false, address: null },
+                            nft_data_ref: parseNftDataRef(stack.readCell()),
+                            contract_address: address.toString(),
+                        });
+                    } else {
+                        setInfo({
+                            balance: fromNano(stack.readBigNumber()),
+                            wonton_power: stack.readNumber(),
+                            wonton_prize: stack.readBigNumber(),
+                            bettors_count: stack.readNumber(),
+                            first_bettor: stack.readAddressOpt(),
+                            second_bettor: stack.readAddressOpt(),
+                            referral_proxy: parseReferralProxyRef(stack.readCell()),
+                            nft_data_ref: parseNftDataRef(stack.readCell()),
+                            contract_address: address.toString(),
+                        });
+                    }
                 } catch (ex) {
                     console.error(ex);
                 }

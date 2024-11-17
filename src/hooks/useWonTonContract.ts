@@ -16,7 +16,7 @@ export function useWonTonContract(wontonAddress: Address) {
         return client.open(contract);
     }, [])
 
-    const sendBet = useCallback<() => Promise<boolean | undefined>>(async () => {
+    const sendBet = useCallback<() => Promise<void>>(async () => {
         // console.log(`calling sendBet for contract ${contract?.address.toString({ testOnly })}`);
         return tryNTimes(async () => {
             const openedContract = await openContract(contract);

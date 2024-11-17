@@ -10,7 +10,7 @@ import { useInterval } from "./hooks/useInterval.ts";
 import { POLLING_INTERVAL } from "./hooks/useNftWatcher.ts";
 
 export function WonTonContractDetails({ getData, sendBet, wontonAddress, wontonPower }:
-    { getData: () => Promise<WonTonData | undefined>, sendBet: () => Promise<boolean | undefined>, wontonAddress: Address, wontonPower: number }) {
+    { getData: () => Promise<WonTonData | undefined>, sendBet: () => Promise<void>, wontonAddress: Address, wontonPower: number }) {
 
     const [ pollingInterval, setPollingInterval ] = useState<number | undefined>(POLLING_INTERVAL);
     const [ info, setInfo ] = useState<WonTonData | undefined>();
