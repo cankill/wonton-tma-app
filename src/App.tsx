@@ -21,7 +21,7 @@ function App() {
     const walletAddress = useMemo(() => address(wallet?.account.address), [ wallet ])
     const [ wontonPower, setWontonPower ] = useState(0);
     const [ ready, setReady ] = useState(false);
-    const [ universes, setUniverses ] = useState(globalUniversesHolder[0]);
+    const [ universes, setUniverses ] = useState(globalUniversesHolder.universesHolder[0]);
     const contract = useWonTonContract(universes.wonTon);
     const wContract = useWonTonNftCollectionContract(universes.winUniverse.collection)
     const lContract = useWonTonNftCollectionContract(universes.looseUniverse.collection)
@@ -38,19 +38,17 @@ function App() {
         }
     }, [walletAddress]);
 
-
-
     useEffect(() => {
-        setUniverses(globalUniversesHolder[wontonPower]);
+        setUniverses(globalUniversesHolder.universesHolder[wontonPower]);
     }, [ wontonPower ]);
 
     const onClick: MenuProps['onClick'] = useCallback(({ key }: { key: string }) => {
         setWontonPower(+key);
-        console.log(`Setting new universe. wontonPower: ${key}, address: ${globalUniversesHolder[+key].wonTon.toString()}`);
+        console.log(`Setting new universe. wontonPower: ${key}, address: ${globalUniversesHolder.universesHolder[+key].wonTon.toString()}`);
     }, []);
 
     const items: MenuProps["items"] = useMemo(() => {
-        return Object.values(globalUniversesHolder).map(universes => {
+        return Object.values(globalUniversesHolder.universesHolder).map(universes => {
             return {
                 key: universes.wonTonPower.toString(),
                 label: `Universe ${universes.wonTonPower}`,
@@ -60,7 +58,7 @@ function App() {
 
     return (
         <Flex vertical={true} gap="middle">
-            <Flex vertical={false} gap="middle" align={"center"} className={"abc"}>
+            <Flex vertical={false} gap="middle" align={"center"}>
                 <Space>
                     <TonConnectButton/>
                     <Dropdown menu={{ items, selectable: true, defaultSelectedKeys: [ '0' ], onClick }} trigger={[ 'click' ]}>
@@ -83,8 +81,8 @@ function App() {
                 </Flex>
                 {ready && walletAddress ? (
                     <Flex vertical={true} gap="middle">
-                        <NftCollection collection_type={'WIN'} walletAddress={walletAddress}/>
-                        <NftCollection collection_type={'LOOSE'} walletAddress={walletAddress}/>
+                        <NftCollection collection_type={'WIN'} walletAddress={walletAddress} wontonPower={wontonPower} />
+                        <NftCollection collection_type={'LOOSE'} walletAddress={walletAddress} wontonPower={wontonPower} />
                     </Flex>
                 ) : null}
             </Flex>

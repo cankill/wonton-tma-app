@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { CollectionType, Nft, NftsHistory, NftStore, SimpleTransactionHistory, PROCESSED, FOUND, Stores } from '@wonton-lib/Types.ts';
 import { checkNftOwner, digForNewNfts } from "../workers/WonTonNftTools.ts";
-import { globalUniversesHolder } from "./GlobalUniversesHolder.ts";
 import { Address } from "@ton/core";
 
 export const testOnly = import.meta.env.VITE_TEST_ONLY === 'true' || true;
@@ -46,14 +45,14 @@ export const useNftsStore = create<NftStore>()(
                             },
                         }})
                 },
-                doesNftExists: (walletAddressStr, cType, wontonPower, nftIndex) => {
+                doesNftExists: (walletAddressStr, collectionInfo, nftIndex) => {
                     const store = get().store(walletAddressStr);
-                    const key: string = createNftIndex(cType, wontonPower, nftIndex)
+                    const key: string = createNftIndex(collectionInfo.cType, collectionInfo.wonTonPower, nftIndex)
                     return key in store.nfts;
                 },
-                addNft: (walletAddressStr, cType, newNft) => {
+                addNft: (walletAddressStr, newNft) => {
                     const store = get().store(walletAddressStr);
-                    const key: string = createNftIndex(cType, newNft.wonton_power, newNft.nft_index)
+                    const key: string = createNftIndex(newNft.collection_type, newNft.wonton_power, newNft.nft_index)
                     set({
                         storesRegistry: {
                             ...get().storesRegistry,
@@ -103,7 +102,7 @@ export const useNftsStore = create<NftStore>()(
                             storesRegistry: {
                                 ... get().storesRegistry,
                                 [walletAddressStr]: {
-                                    nfts: { ... store.nfts, [nftKey]: { ...updatedNft, type: 'NON_MY_NFT', owner_address: newOwner.toString({testOnly}) } },
+                                    nfts: { ... store.nfts, [nftKey]: { ...updatedNft, type: 'NON_MY_NFT', owner_address: newOwner?.toString({testOnly}) } },
                                     transactions: store.transactions
                                 },
                             }
@@ -113,11 +112,11 @@ export const useNftsStore = create<NftStore>()(
                 anyNotProcessedTransactions: (walletAddressStr) => {
                     return Object.values(get().store(walletAddressStr).transactions).some((nft)=> nft.state === FOUND);
                 },
-                filteredNfts: (walletAddressStr, cType) => {
+                filteredNfts: (walletAddressStr, cType, wontonPower) => {
                     const store = get().store(walletAddressStr);
                     const response: NftsHistory = {};
                     for (const [key, nft] of Object.entries(store.nfts)) {
-                        if (nft.collection_type === cType && nft.type === 'NFT') {
+                        if (nft.collection_type === cType && nft.type === 'NFT' && nft.wonton_power == wontonPower) {
                             response[key] = nft;
                         }
                     }
@@ -125,10 +124,8 @@ export const useNftsStore = create<NftStore>()(
                 },
                 poll: async (walletAddress: Address): Promise<void> => {
                     const walletAddressStr = walletAddress.toString({testOnly});
-                    for (const universes of Object.values(globalUniversesHolder)) {
-                        console.log(`Wonton power: ${universes.wonTonPower} | Poling Universes`)
-                        await digForNewNfts(walletAddress, walletAddressStr, universes, get);
-                    }
+                    console.log(`Poling Universes...`)
+                    await digForNewNfts(walletAddress, walletAddressStr, get);
                 },
                 updateNftOwner: async (walletAddress: Address): Promise<void> => {
                     const walletAddressStr = walletAddress.toString({testOnly});
@@ -136,8 +133,13 @@ export const useNftsStore = create<NftStore>()(
                         // console.log(printJson(nft.nft_address));
                         const ownershipState = await checkNftOwner(Address.parse(nft.nft_address), walletAddress);
                         if (!ownershipState.ownershipApproved) {
-                            console.log(`Unlink transferred nft: ${nftKey}`);
-                            get().markNftAsNotMyNft(walletAddressStr, nftKey, ownershipState.owner);
+                            if (!ownershipState.owner) {
+                                console.log(`Remove deleted nft: ${nftKey}`);
+                                get().deleteNft(walletAddressStr, nftKey);
+                            } else {
+                                console.log(`Unlink transferred nft: ${nftKey}`);
+                                get().markNftAsNotMyNft(walletAddressStr, nftKey, ownershipState.owner);
+                            }
                         }
                     }
                 }

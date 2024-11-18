@@ -2,23 +2,24 @@
 
 import { Transaction } from "@ton/ton";
 import { Address } from '@ton/core'
-import { BEUniverses, CollectionType, FOUND, GetNftData, isNft, NFT, Nft, NftMeta, NftStore, NON_NFT, NonNft, WIN } from "@wonton-lib/Types.ts";
+import { CollectionInfo, FeGetNftData, FOUND, GetNftData, isNft, isNftData, NFT, Nft, NftMeta, NftStore, NonNft, NOT_NFT } from "@wonton-lib/Types.ts";
 import { isTonAddress, possiblyNftTransfer } from "@wonton-lib/TonUtils.ts";
 import { wonTonClientProvider } from "@wonton-lib/WonTonClientProvider.ts";
 import axios from "axios";
 import { tryNTimes } from "@wonton-lib/PromisUtils.ts";
-import { getErrorMessage } from "@wonton-lib/ErrorHandler.ts";
+// import { testOnly } from "../store/NftsStore.ts";
+import { globalUniversesHolder } from "../store/GlobalUniversesHolder.ts";
 import { testOnly } from "../store/NftsStore.ts";
+import { getErrorMessage } from "@wonton-lib/ErrorHandler.ts";
 // import { getErrorMessage } from "../../modules/wonton-lib-common/src/ErrorHandler.ts";
 
 // const nftItemCode = import.meta.env.VITE_NFT_ITEM_CODE;
 
 export const digForNewNfts = async (walletAddress: Address,
     walletAddressStr: string,
-    universes: BEUniverses,
     get: () => NftStore) => {
     try {
-        await readTransactions(walletAddress, walletAddressStr, universes, get);
+        await readTransactions(walletAddress, walletAddressStr, get);
     } catch (ex) {
         // @ts-ignore
         console.error(ex.message)
@@ -29,17 +30,16 @@ export const digForNewNfts = async (walletAddress: Address,
 
 const readTransactions = async (walletAddress: Address,
     walletAddressStr: string,
-    universes: BEUniverses,
     get: () => NftStore) => {
     const haveNotProcessed = get().anyNotProcessedTransactions(walletAddressStr);
 
     const innerRead = async (hash?: string, lt?: string, limit: number = 30) => {
         const newTransactions = await tryRequestTransactionList(walletAddress, hash, lt, limit);
-        // console.log(`Received ${newTransactions?.length} transactions`);
+        console.log(`Received ${newTransactions?.length} transactions`);
         if (!newTransactions) { return; }
 
         const hitBottom = newTransactions.length == 0 || newTransactions.length < limit;
-        const processResult = await processTransactions(walletAddress, walletAddressStr, universes, newTransactions, haveNotProcessed, get);
+        const processResult = await processTransactions(walletAddress, walletAddressStr, newTransactions, haveNotProcessed, get);
         if ((hitBottom || processResult.hitBottom) && !haveNotProcessed) { return; }
         return await innerRead(processResult.lastHash, processResult.lastLt);
     }
@@ -49,7 +49,6 @@ const readTransactions = async (walletAddress: Address,
 
 const processTransactions = async (walletAddress: Address,
     walletAddressStr: string,
-    universes: BEUniverses,
     receivedTransactions: Transaction[],
     haveNotProcessed: boolean,
     get: () => NftStore) => {
@@ -59,16 +58,16 @@ const processTransactions = async (walletAddress: Address,
 
     for (const tx of receivedTransactions) {
         const txHash = tx.hash().toString("base64");
+        lastHash = txHash;
+        lastLt = tx.lt.toString();
+
         if (!get().isTransactionProcessed(walletAddressStr, txHash)) {
             get().addTransaction(walletAddressStr, { hash: txHash, lt: tx.lt, now: tx.now, state: FOUND });
-            console.log(`Found unprocessed transaction: ${txHash}, tx.now: ${new Date(tx.now * 1000).toISOString()}`);
-            const success = await handleWalletInTxs(walletAddress, walletAddressStr, universes, tx, get);
+            // console.log(`Found unprocessed transaction: ${txHash}, tx.now: ${new Date(tx.now * 1000).toISOString()}`);
+            const success = await handleWalletInTxs(walletAddress, walletAddressStr, tx, get);
             if (success) {
                 get().markTransactionAsProcessed(walletAddressStr, txHash);
             }
-
-            lastHash = txHash;
-            lastLt = tx.lt.toString();
         } else if (!haveNotProcessed) {
             hitBottom = true;
             break;
@@ -85,73 +84,79 @@ const requestTransactionList = async (walletAddress: Address, hash?: string, lt?
 
 const handleWalletInTxs = async (walletAddress: Address,
     walletAddressStr: string,
-    universes: BEUniverses,
     tx: Transaction,
     get: () => NftStore): Promise<boolean> => {
     const inMsg = tx.inMessage;
     const nftAddress = inMsg?.info.src;
     if (isTonAddress(nftAddress) && possiblyNftTransfer(inMsg)) {
-        console.log(`Possibly NFT found: ${nftAddress}`);
+        // console.log(`Possibly NFT found: ${nftAddress}`);
         const nftData = await tryGetNftData(nftAddress);
         if (!nftData) {
             console.log(`No nft data loaded`);
             return false;
         }
 
-        const winNft = await handleTx('WIN', nftAddress, walletAddress, walletAddressStr, universes, tx, nftData, get);
-        if (isNft(winNft)) {
-            get().addNft(walletAddressStr, 'WIN', winNft);
+        if(!isNftData(nftData.getNftData)) {
+            return true;
         }
 
-        const looseNft = await handleTx('LOOSE', nftAddress, walletAddress, walletAddressStr, universes, tx, nftData, get);
-        if (isNft(looseNft)) {
-            get().addNft(walletAddressStr, 'LOOSE', looseNft);
+        const nft = await handleTx(nftAddress, walletAddress, walletAddressStr, tx, nftData.getNftData, get);
+        if (!nft) {
+            console.log(`No nft meta data loaded`);
+            return false;
+        }
+
+        if (isNft(nft)) {
+            get().addNft(walletAddressStr, nft);
         }
     }
 
     return true;
 }
 
-const handleTx = async (cType: CollectionType,
+const handleTx = async (
     nftAddress: Address,
     walletAddress: Address,
     walletAddressStr: string,
-    universes: BEUniverses,
     tx: Transaction,
     nftData: GetNftData,
     get: () => NftStore): Promise<Nft | NonNft | undefined> => {
-    console.log(`Run handleTx for: ${cType}`);
-    const collection = cType === WIN ? universes.winUniverse.collection : universes.looseUniverse.collection;
-    const nftWontonPower = universes.wonTonPower + 1;
-    console.log(`wallet address: ${walletAddressStr}`);
-    console.log(`nftData.owner: ${nftData.owner.toString({ testOnly })}`);
-    console.log(`collection: ${collection.toString({ testOnly })}`);
-    console.log(`nftData.collection: ${nftData.collection.toString({ testOnly })}`);
-    if (walletAddress.equals(nftData.owner) && collection.equals(nftData.collection)) {
-        if (!get().doesNftExists(walletAddressStr, cType, nftWontonPower, nftData.index)) {
-            console.log(`wontonPower: ${universes.wonTonPower} | Found new ${cType} NFT Transaction for #: ${nftData.index}`);
-            const nft_meta = await fetchMeta(cType, nftWontonPower, nftData.index);
-            return {
-                type: NFT,
-                nft_address: nftAddress.toString({ testOnly }),
-                owner_address: nftData.owner.toString({ testOnly }),
-                nft_index: nftData.index,
-                collection_type: cType,
-                wonton_power: nftWontonPower,
-                nft_meta,
-                created_at: (tx.now * 1000).toString(),
-            };
+
+    // console.log(`wallet address: ${walletAddressStr}`);
+    // console.log(`nftData.owner: ${nftData.owner.toString({ testOnly })}`);
+    // console.log(`nftData.collection: ${nftData.collection.toString({ testOnly })}`);
+    if (walletAddress.equals(nftData.owner)) {
+        const collectionInfo = globalUniversesHolder.collections[nftData.collection.toRawString()];
+        if (collectionInfo) {
+            if (!get().doesNftExists(walletAddressStr, collectionInfo, nftData.index)) {
+                console.log(`wontonPower: ${collectionInfo.wonTonPower} | Found new ${collectionInfo.cType} NFT Transaction for #: ${nftData.index}`);
+                const nft_meta = await fetchMeta(collectionInfo, nftData.index);
+                return nft_meta ? {
+                    type: NFT,
+                    nft_address: nftAddress.toRawString(),
+                    owner_address: nftData.owner.toRawString(),
+                    nft_index: nftData.index,
+                    collection_type: collectionInfo.cType,
+                    wonton_power: collectionInfo.wonTonPower,
+                    nft_meta,
+                    created_at: (tx.now * 1000).toString(),
+                }
+                : NOT_NFT;
+            }
         }
     }
 
-    return {
-        type: NON_NFT,
-    }
+    return NOT_NFT;
 }
 
-const fetchMeta = async (cType: CollectionType, wontonPower: number, nftIndex: number): Promise<NftMeta> => {
-    const response = await axios.get(`https://simplemoves.github.io/wonton-nft/${cType}/${wontonPower}/meta-${nftIndex}.json`);
-    return response.data;
+const fetchMeta = async (cInfo: CollectionInfo, nftIndex: number): Promise<NftMeta | undefined> => {
+    try {
+        const response = await axios.get(`https://simplemoves.github.io/wonton-nft/${cInfo.cType}/${cInfo.wonTonPower}/meta-${nftIndex}.json`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching meta. cType: ${cInfo.cType}, wonTonPower: ${cInfo.wonTonPower}, index: ${nftIndex}`);
+        return undefined;
+    }
 }
 
 export const checkNftOwner = async (nftAddress: Address, walletAddress: Address) => {
@@ -159,45 +164,50 @@ export const checkNftOwner = async (nftAddress: Address, walletAddress: Address)
     // console.log(`Nft address: ${printJson(nftAddress)}`);
     // console.log(`Nft address is address: ${Address.isAddress(nftAddress)}`);
     // console.log(printJson(nftAddress));
-    const nft = await getNftDataOrUndefined(nftAddress);
+    const nft = await getNftData(nftAddress);
     // console.log(`Nft's owner address: ${nftAddress?.toString({ testOnly })}`);
     // console.log(`Wallet address: ${this.walletAddress?.toString({ testOnly })}`);
     // console.log(`this.walletAddress.equals(nft.owner): ${this.walletAddress.equals(nft.owner)}`);
-    const ownershipApproved = !nft!! || walletAddress.equals(nft.owner);
+    const ownershipApproved = !nft!! ||
+                              (isNftData(nft?.getNftData) && walletAddress.equals(nft?.getNftData.owner));
     return {
         ownershipApproved,
-        owner: ownershipApproved ? walletAddress : nft.owner,
+        owner: ownershipApproved ? walletAddress : nft?.getNftData?.owner,
     };
 }
 
-const getNftData = async (nftAddress: Address) => {
+const getNftData = async (nftAddress: Address): Promise<FeGetNftData | undefined> => {
+    console.log(`Getting NFT data for address: ${nftAddress.toString({testOnly})}`);
     const tonClient = await wonTonClientProvider.wonTonClient();
-    const { stack } = await tonClient.runMethod(nftAddress, "get_nft_data");
-    const inited = stack.readBoolean();
-    const index = stack.readNumber();
-    const collection = stack.readAddress();
-    const owner = stack.readAddress();
 
-    return {
-        inited,
-        index,
-        collection,
-        owner,
-    };
+    try {
+        const { stack, exit_code } = await tonClient.runMethodWithError(nftAddress, "get_nft_data");
+        console.log(`Got NFT data for address: ${nftAddress.toString({ testOnly })}, exit_code: ${exit_code}`);
+        if (exit_code != 0) {
+            console.log(`Get NFT data with address: ${nftAddress.toString({ testOnly })} failed with error: ${exit_code}`);
+            console.log(`NFT with address: ${nftAddress.toString({ testOnly })} probably removed`);
+            return {};
+        }
+        const inited = stack.readBoolean();
+        const index = stack.readNumber();
+        const collection = stack.readAddress();
+        const owner = stack.readAddress();
+
+        return {
+            getNftData: {
+                inited,
+                index,
+                collection,
+                owner,
+            }
+        };
+    } catch (error) {
+        console.error(getErrorMessage(error))
+    }
 }
 
 const tryRequestTransactionList = async (walletAddress: Address, hash?: string, lt?: string, limit: number = 20) =>
     tryNTimes(async () => requestTransactionList(walletAddress, hash, lt, limit), 5, 500);
-
-const getNftDataOrUndefined = async (nftAddress: Address) => {
-    try {
-        return getNftData(nftAddress);
-    } catch (error) {
-        console.warn(`Get NFT Data failed with: ${getErrorMessage(error)}`);
-    }
-
-    return undefined;
-}
 
 const tryGetNftData = async (nftAddress: Address) =>
     tryNTimes(() => getNftData(nftAddress), 5, 500);

@@ -3,14 +3,15 @@ import { Card, Image, Space } from "antd";
 import { Nft } from "@wonton-lib/Types.ts";
 import { NftAttributes } from "./NftAttributes.tsx";
 import { PlayButton } from "./PlayButton.tsx";
+import { BurnButton } from "./BurnButton.tsx";
 
-export function NftItemPreview({ nft, sendBetNft }: { nft: Nft, sendBetNft: () => Promise<void> }) {
+export function NftItemPreview({ nft, sendBetNft, sendBurnNft, closePreview }: { nft: Nft, sendBetNft: () => Promise<void>, sendBurnNft: () => Promise<void>, closePreview: () => void }) {
     return (
         <Card hoverable bordered={false} style={{ width: '40Rem' }} className={"aaa"}
-              extra={nft.collection_type === 'WIN' ? (<Space>
-                                                       <PlayButton sendBet={sendBetNft}/>
-                                                   </Space>)
-                                                   : null}>
+              extra={ <Space>
+                  { nft.collection_type === 'WIN' ? (<PlayButton sendBet={sendBetNft}/>) : null }
+                  <BurnButton sendBurn={sendBurnNft} closePreview={closePreview} />
+              </Space> }>
             {/*<Flex vertical={true} gap="middle">*/}
             <center>
                 <Image
