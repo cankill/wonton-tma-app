@@ -140,7 +140,7 @@
 //     }
 //
 //     private fetchMeta = async (wontonPower: number, nftIndex: number): Promise<NftMeta> => {
-//         const response = await axios.get(`https://simplemoves.github.io/wonton-nft/${this.cType}/${wontonPower}/meta-${nftIndex}.json`);
+//         const response = await axios.get(`https://simplemoves.github.io/wontopia-nft/${this.cType}/${wontonPower}/meta-${nftIndex}.json`);
 //         const meta: NftMeta = response.data
 //         return meta;
 //     }
